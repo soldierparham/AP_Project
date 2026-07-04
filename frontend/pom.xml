@@ -38,8 +38,11 @@
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
         <configuration>
-          <!-- اسم کلاس اصلی رو به جای این، با اسم واقعی خودت عوض کن -->
           <mainClass>com.example.frontend.MainApplication</mainClass>
+          <options>
+            <option>--add-modules</option>
+            <option>javafx.controls,javafx.fxml</option>
+          </options>
         </configuration>
       </plugin>
     </plugins>

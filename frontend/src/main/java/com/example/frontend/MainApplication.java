@@ -1,60 +1,117 @@
 package com.example.frontend;
 
 import javafx.application.Application;
-import javafx.geometry.Pos;
+import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
+import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 public class MainApplication extends Application {
 
-    // آدرس پایه بک‌اند (همان پورتی که بک‌اند اجرا شده)
-    public static final String BASE_URL = "http://localhost:8080";
+    // 🌟 ذخیره اطلاعات سشن جاری کاربر در کل فرانت‌انند
+    public static String currentUsername = null;
+    public static String jwtToken = null; // 👈 ۱. اضافه شد تا فرانت‌انند بتواند توکن را مدیریت کند
 
     @Override
     public void start(Stage stage) {
-        Label label = new Label("فرانت‌اند سامانه دست دوم");
-        Button testBtn = new Button("اتصال به بک‌اند");
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/com/example/frontend/login-view.fxml"));
+            Parent root = fxmlLoader.load();
 
-        // با کلیک دکمه، یک درخواست تست به بک‌اند می‌زنیم
-        testBtn.setOnAction(e -> testConnection());
+            // 👈 ۲. اصلاح شد: تعیین دقیق ابعاد اولیه روی 600 در 800 برای رفع مشکل تغییر سایز پس از لاگ‌اوت
+            Scene scene = new Scene(root, 600, 800);
 
-        VBox root = new VBox(15, label, testBtn);
-        root.setAlignment(Pos.CENTER);
+            stage.setTitle("سامانه دست دوم (طرح دیوار)");
+            stage.setScene(scene);
+            stage.setResizable(false); // غیرفعال کردن ریسایز دستی پنجره ورود
 
-        Scene scene = new Scene(root, 400, 300);
-        stage.setTitle("Second-hand App");
-        stage.setScene(scene);
-        stage.show();
+            // 🚪 مدیریت بسته شدن ناگهانی برنامه توسط کاربر
+            stage.setOnCloseRequest(event -> {
+                System.out.println("🔴 پنجره برنامه توسط کاربر بسته شد.");
+                if (currentUsername != null) {
+                    sendLogoutRequestToBackend(currentUsername);
+                }
+                Platform.exit();
+                System.exit(0);
+            });
+
+            stage.show();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("خطا در بارگذاری فایل FXML! مسیر فایل را چک کنید.");
+        }
     }
 
-    private void testConnection() {
-        // یک HttpClient ساده برای درخواست GET به لیست آگهی‌ها (یا هر endpoint عمومی)
-        HttpClient client = HttpClient.newHttpClient();
-        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                .uri(java.net.URI.create(BASE_URL + "/api/advertisements"))
-                .GET()
-                .build();
+    /**
+     * 🔄 ۳. متد متمرکز برای انتقال کاربر به صفحه لاگین (با ابعاد دقیق و پاکسازی سشن)
+     * این متد هم در دکمه خروج و هم هنگام اکسپایر شدن توکن (خطای 401) صدا زده می‌شود.
+     */
+    public static void redirectToLogin(Stage currentStage, String warningMessage) {
+        Platform.runLater(() -> {
+            try {
+                // پاکسازی کامل متغیرهای سشن محلی
+                currentUsername = null;
+                jwtToken = null;
 
-        client.sendAsync(request, java.net.http.HttpResponse.BodyHandlers.ofString())
-                .thenApply(java.net.http.HttpResponse::body)
-                .thenAccept(body -> {
-                    // نمایش نتیجه در یک پنجره popup ساده (یا System.out)
-                    System.out.println("پاسخ از بک‌اند: " + body);
-                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                    alert.setContentText("اتصال موفق! پاسخ: " + body.substring(0, Math.min(50, body.length())) + "...");
-                    alert.show();
-                })
-                .exceptionally(e -> {
-                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
-                    alert.setContentText("خطا در اتصال به بک‌اند: " + e.getMessage());
-                    alert.show();
-                    return null;
-                });
+                // بستن پنجره اصلی (داشبورد)
+                if (currentStage != null) {
+                    currentStage.close();
+                }
+
+                // بارگذاری مجدد پنجره لاگین با سایز دقیق و هماهنگ اولیه
+                FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/com/example/frontend/login-view.fxml"));
+                Parent root = fxmlLoader.load();
+                Scene scene = new Scene(root, 600, 800); // 🌟 تضمین ثبات ابعاد
+
+                Stage loginStage = new Stage();
+                loginStage.setTitle("ورود به سامانه دیوار");
+                loginStage.setScene(scene);
+                loginStage.setResizable(false);
+                loginStage.show();
+
+                // نمایش هشدار مناسب به کاربر
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("وضعیت حساب");
+                alert.setHeaderText(null);
+                alert.setContentText(warningMessage);
+                alert.show();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println("خطا در انتقال فرآیند به صفحه لاگین!");
+            }
+        });
+    }
+
+    /**
+     * 🌐 ارسال درخواست خروج فوری به بک‌انند هنگام بستن پنجره با ضربدر
+     */
+    private void sendLogoutRequestToBackend(String username) {
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+
+            // ارسال درخواست به اندپوینتی که در مرحله قبل اصلاح کردیم
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/api/auth/logout?username=" + username))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            // استفاده از ارسال همزمان (Sync) به دلیل بسته شدن آنی پروسس برنامه
+            client.send(request, HttpResponse.BodyHandlers.discarding());
+            System.out.println("🔒 توکن کاربر در دیتابیس بک‌انند null شد.");
+
+        } catch (Exception e) {
+            System.err.println("❌ خطا در باطل کردن توکن بک‌انند: " + e.getMessage());
+        }
     }
 
     public static void main(String[] args) {

@@ -1,4 +1,5 @@
-org\example\frontend\HelloApplication.class
+com\example\frontend\Launcher.class
 com\example\frontend\MainApplication.class
-org\example\frontend\Launcher.class
-org\example\frontend\HelloController.class
+com\example\frontend\service\HttpService.class
+com\example\frontend\HelloController.class
+com\example\frontend\RegisterController.class

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.effect.DropShadow?>
+
+<StackPane prefHeight="680.0" prefWidth="440.0" style="-fx-background-color: linear-gradient(to bottom right, #160f29, #241942);" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterController">
+    <children>
+        <VBox alignment="CENTER" maxWidth="380.0" maxHeight="630.0" spacing="18.0" style="-fx-background-color: #241942; -fx-background-radius: 18; -fx-padding: 25 35 25 35;">
+            <effect>
+                <DropShadow blurType="THREE_PASS_BOX" color="#00000066" radius="25.0" width="50.0" />
+            </effect>
+            <children>
+
+                <VBox alignment="CENTER" spacing="4.0">
+                    <children>
+                        <Label text="Create Account" textFill="#ffc83b">
+                            <font>
+                                <Font name="System Bold" size="22.0" />
+                            </font>
+                        </Label>
+                        <Label text="اطلاعات خود را برای ثبت‌نام وارد کنید" textFill="#b9a6df">
+                            <font>
+                                <Font size="12.0" />
+                            </font>
+                        </Label>
+                    </children>
+                </VBox>
+
+                <VBox spacing="10.0">
+                    <children>
+                        <VBox alignment="TOP_RIGHT" spacing="4.0">
+                            <children>
+                                <Label text="نام و نام خانوادگی" textFill="WHITE">
+                                    <font><Font name="System Bold" size="11.0" /></font>
+                                </Label>
+                                <TextField fx:id="nameField" prefHeight="38.0" promptText="علی علوی" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-right; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                            </children>
+                        </VBox>
+
+                        <VBox alignment="TOP_RIGHT" spacing="4.0">
+                            <children>
+                                <Label text="نام کاربری (انگلیسی)" textFill="WHITE">
+                                    <font><Font name="System Bold" size="11.0" /></font>
+                                </Label>
+                                <TextField fx:id="usernameField" prefHeight="38.0" promptText="username" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                            </children>
+                        </VBox>
+
+                        <VBox alignment="TOP_RIGHT" spacing="4.0">
+                            <children>
+                                <Label text="شماره تماس" textFill="WHITE">
+                                    <font><Font name="System Bold" size="11.0" /></font>
+                                </Label>
+                                <TextField fx:id="phoneField" prefHeight="38.0" promptText="09123456789" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                            </children>
+                        </VBox>
+
+                        <VBox alignment="TOP_RIGHT" spacing="4.0">
+                            <children>
+                                <Label text="ایمیل" textFill="WHITE">
+                                    <font><Font name="System Bold" size="11.0" /></font>
+                                </Label>
+                                <TextField fx:id="emailField" prefHeight="38.0" promptText="example@domain.com" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                            </children>
+                        </VBox>
+
+                        <VBox alignment="TOP_RIGHT" spacing="4.0">
+                            <children>
+                                <Label text="رمز عبور" textFill="WHITE">
+                                    <font><Font name="System Bold" size="11.0" /></font>
+                                </Label>
+                                <PasswordField fx:id="passwordField" prefHeight="38.0" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                            </children>
+                        </VBox>
+                    </children>
+                </VBox>
+
+                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onRegisterSubmitClick" prefHeight="42.0" style="-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 7; -fx-cursor: hand;" text="ثبت‌نام و ایجاد حساب">
+                    <font>
+                        <Font name="System Bold" size="14.0" />
+                    </font>
+                </Button>
+
+                <VBox alignment="CENTER" spacing="6.0">
+                    <children>
+                        <Button mnemonicParsing="false" onAction="#onGoToLoginClick" style="-fx-background-color: transparent; -fx-text-fill: #ffc83b; -fx-cursor: hand;" text="حساب کاربری دارید؟ وارد شوید">
+                            <font><Font size="12.0" /></font>
+                        </Button>
+                        <Button mnemonicParsing="false" onAction="#onCancelClick" style="-fx-background-color: transparent; -fx-text-fill: #8575a3; -fx-cursor: hand;" text="انصراف">
+                            <font><Font size="12.0" /></font>
+                        </Button>
+                    </children>
+                </VBox>
+
+            </children>
+        </VBox>
+    </children>
+</StackPane>
