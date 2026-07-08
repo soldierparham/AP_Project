@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="TOP_RIGHT" spacing="20.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterAdController">
+    <children>
+        <Label text="📝 ثبت آگهی جدید" textFill="WHITE">
+            <font>
+                <Font name="System Bold" size="20.0" />
+            </font>
+            <VBox.margin>
+                <Insets bottom="10.0" />
+            </VBox.margin>
+        </Label>
+
+        <VBox alignment="TOP_RIGHT" spacing="6.0">
+            <children>
+                <Label text="عنوان آگهی" textFill="#b9a6df">
+                    <font><Font size="13.0" /></font>
+                </Label>
+                <TextField fx:id="titleInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="مثال: آیفون ۱۳ پرو مکس" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
+            </children>
+        </VBox>
+
+        <VBox alignment="TOP_RIGHT" spacing="6.0">
+            <children>
+                <Label text="قیمت (تومان)" textFill="#b9a6df">
+                    <font><Font size="13.0" /></font>
+                </Label>
+                <TextField fx:id="priceInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="مثال: 45000000" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
+            </children>
+        </VBox>
+
+        <VBox alignment="TOP_RIGHT" spacing="6.0">
+            <children>
+                <Label text="توضیحات آگهی" textFill="#b9a6df">
+                    <font><Font size="13.0" /></font>
+                </Label>
+                <TextArea fx:id="descriptionInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="150.0" promptText="توضیحات کامل کالا، وضعیت ظاهری و..." style="-fx-control-inner-background: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" wrapText="true" />
+            </children>
+        </VBox>
+
+        <VBox alignment="CENTER" spacing="10.0">
+            <children>
+                <HBox alignment="CENTER" spacing="15.0" maxWidth="1.7976931348623157E308">
+                    <children>
+                        <Button HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onCancelClick" prefHeight="45.0" style="-fx-background-color: transparent; -fx-border-color: #ff5555; -fx-border-radius: 6; -fx-text-fill: #ff5555; -fx-cursor: hand;" text="❌ انصراف و بازگشت">
+                            <font>
+                                <Font name="System Bold" size="14.0" />
+                            </font>
+                        </Button>
+
+                        <Button HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSubmitAdClick" prefHeight="45.0" style="-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" text="✨ انتشار آگهی">
+                            <font>
+                                <Font name="System Bold" size="14.0" />
+                            </font>
+                        </Button>
+                    </children>
+                </HBox>
+            </children>
+            <VBox.margin>
+                <Insets top="15.0" />
+            </VBox.margin>
+        </VBox>
+    </children>
+    <padding>
+        <Insets bottom="30.0" left="150.0" right="150.0" top="30.0" />
+    </padding>
+</VBox>

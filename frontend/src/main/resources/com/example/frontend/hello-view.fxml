@@ -16,7 +16,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="750.0" prefWidth="1100.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.HelloController">
+<BorderPane fx:id="mainBorderPane" prefHeight="750.0" prefWidth="1100.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.HelloController">
 
     <top>
         <HBox alignment="CENTER_RIGHT" prefHeight="65.0" spacing="20.0" style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-width: 0 0 1 0;" BorderPane.alignment="CENTER">
@@ -147,7 +147,7 @@
                                     <children>
                                         <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
                                             <children>
-                                                <Label text="میز تحریر چوبی مدرن" textFill="WHITE" wrapText="true">
+                                                <Label text="میز تحرير چوبی مدرن" textFill="WHITE" wrapText="true">
                                                     <font><Font name="System Bold" size="13.0" /></font>
                                                 </Label>
                                                 <Label text="نو همراه با کشو" textFill="#b9a6df" />
@@ -174,4 +174,5 @@
             </content>
         </ScrollPane>
     </center>
+
 </BorderPane>

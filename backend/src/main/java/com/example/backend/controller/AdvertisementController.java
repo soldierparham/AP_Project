@@ -1,7 +1,9 @@
 package com.example.backend.controller;
 
+import com.example.backend.model.Advertisement;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtUtil;
+import com.example.backend.service.AdvertisementService;
 import com.example.backend.service.AuthService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,7 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
@@ -24,10 +28,13 @@ public class AdvertisementController {
     private AuthService authService;
 
     @Autowired
-    private UserRepository userRepository; // 💾 اضافه شد: برای به‌روزرسانی توکن جدید در دیتابیس
+    private UserRepository userRepository; // 💾 برای به‌روزرسانی توکن جدید در دیتابیس SQLite
+
+    @Autowired
+    private AdvertisementService advertisementService;
 
     /**
-     * 📥 ۱. دریافت لیست آگهی‌ها (GET)
+     * 📥 ۱. دریافت تمام آگهی‌های موجود در سیستم (GET)
      */
     @GetMapping("/advertisements")
     public ResponseEntity<?> getAdvertisements(@RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -45,24 +52,17 @@ public class AdvertisementController {
 
         try {
             String username = jwtUtil.extractUsername(token);
-            if (username == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "توکن نامعتبر است."));
+            if (username == null || !jwtUtil.validateToken(token, username) || !authService.isTokenValidInDb(username, token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
             }
 
-            if (!jwtUtil.validateToken(token, username)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "نشست شما معتبر نیست."));
-            }
-
-            if (!authService.isTokenValidInDb(username, token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "اعتبار نشست شما باطل شده است."));
-            }
+            // 🟢 دریافت واقعی داده‌ها از دیتابیس
+            List<Advertisement> allAds = advertisementService.getAllAdvertisements();
 
             return ResponseEntity.ok(Map.of(
                     "status", "success",
-                    "message", "لیست آگهی‌ها با موفقیت بارگذاری شد."
+                    "message", "لیست آگهی‌ها با موفقیت بارگذاری شد.",
+                    "data", allAds
             ));
 
         } catch (ExpiredJwtException e) {
@@ -86,9 +86,8 @@ public class AdvertisementController {
     public ResponseEntity<?> createAdvertisement(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody Map<String, Object> advertisementData,
-            HttpServletResponse response) { // 🌐 اضافه شد: برای فرستادن هدرهای توکن جدید به فرانت‌انند
+            HttpServletResponse response) {
 
-        // 🛡️ فیلتر دفاعی: جلوگیری از ورود هدرهای خالی، null یا undefined فرانت‌انند
         if (authHeader == null || !authHeader.startsWith("Bearer ") ||
                 authHeader.substring(7).trim().isEmpty() ||
                 authHeader.substring(7).equalsIgnoreCase("null") ||
@@ -101,26 +100,14 @@ public class AdvertisementController {
         String token = authHeader.substring(7);
 
         try {
-            // استخراج و اعتبارسنجی نام کاربری
             String username = jwtUtil.extractUsername(token);
-            if (username == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "کاربر نامعتبر است."));
+            if (username == null || !jwtUtil.validateToken(token, username) || !authService.isTokenValidInDb(username, token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
             }
 
-            if (!jwtUtil.validateToken(token, username)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "نشست شما معتبر نیست."));
-            }
-
-            // بررسی فیلد دیتابیس
-            if (!authService.isTokenValidInDb(username, token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("message", "اعتبار نشست شما باطل شده است."));
-            }
-
-            // 🟢 [منطق اصلی ثبت آگهی شما]
+            // 🟢 ذخیره واقعی آگهی در دیتابیس SQLite
             System.out.println("📝 آگهی جدید از کاربر " + username + " دریافت شد: " + advertisementData);
+            Advertisement savedAd = advertisementService.saveAdvertisement(advertisementData, username);
 
             // 🔄 ۳. تمدید زمان (Sliding Expiration): تولید توکن جدید و تازه‌نفس
             String newToken = jwtUtil.generateToken(username);
@@ -136,11 +123,11 @@ public class AdvertisementController {
             response.setHeader("Authorization", "Bearer " + newToken);
             response.setHeader("Access-Control-Expose-Headers", "Authorization");
 
-            // ارسال پاسخ موفقیت همراه با پیام و توکن جدید (جهت اطمینان بیشتر برای فرانت‌انند)
             return ResponseEntity.ok(Map.of(
                     "status", "success",
                     "message", "آگهی شما با موفقیت ثبت شد.",
-                    "token", newToken // فرانت‌انند هم از طریق بدنه و هم هدر به توکن جدید دسترسی دارد
+                    "token", newToken,
+                    "data", savedAd
             ));
 
         } catch (ExpiredJwtException e) {
@@ -154,6 +141,164 @@ public class AdvertisementController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "خطا در پردازش درخواست ثبت آگهی."));
+        }
+    }
+
+    /**
+     * 📋 ۳. دریافت آگهی‌های اختصاصی خود کاربر (GET /my)
+     */
+    @GetMapping("/advertisements/my")
+    public ResponseEntity<?> getMyAdvertisements(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "توکن یافت نشد."));
+        }
+        String token = authHeader.substring(7);
+
+        try {
+            String username = jwtUtil.extractUsername(token);
+            if (username == null || !jwtUtil.validateToken(token, username) || !authService.isTokenValidInDb(username, token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
+            }
+
+            // 🟢 دریافت آگهی‌های فیلتر شده بر اساس مالک آگهی
+            List<Advertisement> myAds = advertisementService.getAdsByUsername(username);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "message", "آگهی‌های شما با موفقیت بارگذاری شد.",
+                    "data", myAds
+            ));
+        } catch (ExpiredJwtException e) {
+            String expiredUsername = e.getClaims().getSubject();
+            if (expiredUsername != null) authService.logout(expiredUsername);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما منقضی شده است."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "خطا در دریافت آگهی‌های شما."));
+        }
+    }
+
+    /**
+     * ✏️ ۴. ویرایش آگهی (PUT) + تمدید توکن برای تجربه کاربری بهتر
+     */
+    @PutMapping("/advertisements/{id}")
+    public ResponseEntity<?> updateAdvertisement(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody Map<String, Object> updatedData,
+            HttpServletResponse response) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "دسترسی غیرمجاز."));
+        }
+        String token = authHeader.substring(7);
+
+        try {
+            String username = jwtUtil.extractUsername(token);
+            if (username == null || !jwtUtil.validateToken(token, username) || !authService.isTokenValidInDb(username, token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست معتبر نیست."));
+            }
+
+            // 🔍 پیدا کردن آگهی موجود
+            Optional<Advertisement> adOpt = advertisementService.getAdById(id);
+            if (adOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "آگهی مورد نظر یافت نشد."));
+            }
+
+            Advertisement existingAd = adOpt.get();
+
+            // 🛡️ بررسی امنیتی فوق‌العاده مهم: تطابق مالک آگهی با توکن ارسال شده
+            if (!existingAd.getOwnerUsername().equals(username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "شما اجازه ویرایش این آگهی را ندارید!"));
+            }
+
+            // 🟢 ویرایش و ذخیره آگهی
+            Advertisement updatedAd = advertisementService.updateAdvertisement(existingAd, updatedData);
+
+            // 🔄 تمدید توکن در عملیات ویرایش
+            String newToken = jwtUtil.generateToken(username);
+            userRepository.findByUsername(username).ifPresent(user -> {
+                user.setToken(newToken);
+                userRepository.saveAndFlush(user);
+            });
+            response.setHeader("Authorization", "Bearer " + newToken);
+            response.setHeader("Access-Control-Expose-Headers", "Authorization");
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "message", "آگهی با موفقیت ویرایش شد.",
+                    "token", newToken,
+                    "data", updatedAd
+            ));
+
+        } catch (ExpiredJwtException e) {
+            String expiredUsername = e.getClaims().getSubject();
+            if (expiredUsername != null) authService.logout(expiredUsername);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما منقضی شده است."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "خطا در ویرایش آگهی."));
+        }
+    }
+
+    /**
+     * 🗑️ ۵. حذف آگهی (DELETE)
+     */
+    @DeleteMapping("/advertisements/{id}")
+    public ResponseEntity<?> deleteAdvertisement(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            HttpServletResponse response) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "دسترسی غیرمجاز."));
+        }
+        String token = authHeader.substring(7);
+
+        try {
+            String username = jwtUtil.extractUsername(token);
+            if (username == null || !jwtUtil.validateToken(token, username) || !authService.isTokenValidInDb(username, token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست معتبر نیست."));
+            }
+
+            // 🔍 پیدا کردن آگهی
+            Optional<Advertisement> adOpt = advertisementService.getAdById(id);
+            if (adOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "آگهی یافت نشد."));
+            }
+
+            Advertisement ad = adOpt.get();
+
+            // 🛡️ بررسی امنیتی فوق‌العاده مهم: فقط مالک آگهی می‌تواند آن را حذف کند
+            if (!ad.getOwnerUsername().equals(username)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "شما اجازه حذف این آگهی را ندارید!"));
+            }
+
+            // 🟢 حذف فیزیکی از دیتابیس
+            advertisementService.deleteAd(id);
+            System.out.println("🗑️ آگهی شماره " + id + " با موفقیت توسط " + username + " حذف شد.");
+
+            // 🔄 تمدید توکن در عملیات حذف
+            String newToken = jwtUtil.generateToken(username);
+            userRepository.findByUsername(username).ifPresent(user -> {
+                user.setToken(newToken);
+                userRepository.saveAndFlush(user);
+            });
+            response.setHeader("Authorization", "Bearer " + newToken);
+            response.setHeader("Access-Control-Expose-Headers", "Authorization");
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "message", "آگهی با موفقیت حذف شد.",
+                    "token", newToken
+            ));
+
+        } catch (ExpiredJwtException e) {
+            String expiredUsername = e.getClaims().getSubject();
+            if (expiredUsername != null) authService.logout(expiredUsername);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما منقضی شده است."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "خطا در حذف آگهی."));
         }
     }
 }
