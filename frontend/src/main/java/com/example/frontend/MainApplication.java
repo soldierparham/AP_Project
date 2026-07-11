@@ -18,7 +18,7 @@ public class MainApplication extends Application {
 
     // 🌟 ذخیره اطلاعات سشن جاری کاربر در کل فرانت‌انند
     public static String currentUsername = null;
-    public static String jwtToken = null; // 👈 ۱. اضافه شد تا فرانت‌انند بتواند توکن را مدیریت کند
+    public static String jwtToken = null;
 
     @Override
     public void start(Stage stage) {
@@ -26,12 +26,11 @@ public class MainApplication extends Application {
             FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/com/example/frontend/login-view.fxml"));
             Parent root = fxmlLoader.load();
 
-            // 👈 ۲. اصلاح شد: تعیین دقیق ابعاد اولیه روی 600 در 800 برای رفع مشکل تغییر سایز پس از لاگ‌اوت
-            Scene scene = new Scene(root, 600, 800);
+            Scene scene = new Scene(root, 600, 800); // 🌟 تضمین ثبات ابعاد اولیه
 
             stage.setTitle("سامانه دست دوم (طرح دیوار)");
             stage.setScene(scene);
-            stage.setResizable(false); // غیرفعال کردن ریسایز دستی پنجره ورود
+            stage.setResizable(false);
 
             // 🚪 مدیریت بسته شدن ناگهانی برنامه توسط کاربر
             stage.setOnCloseRequest(event -> {
@@ -52,25 +51,24 @@ public class MainApplication extends Application {
     }
 
     /**
-     * 🔄 ۳. متد متمرکز برای انتقال کاربر به صفحه لاگین (با ابعاد دقیق و پاکسازی سشن)
-     * این متد هم در دکمه خروج و هم هنگام اکسپایر شدن توکن (خطای 401) صدا زده می‌شود.
+     * 🔄 متد متمرکز برای انتقال کاربر به صفحه لاگین (با ابعاد دقیق و پاکسازی سشن)
      */
     public static void redirectToLogin(Stage currentStage, String warningMessage) {
         Platform.runLater(() -> {
             try {
-                // پاکسازی کامل متغیرهای سشن محلی
+                // ۱. پاکسازی کامل متغیرهای سشن محلی
                 currentUsername = null;
                 jwtToken = null;
 
-                // بستن پنجره اصلی (داشبورد)
+                // ۲. بستن پنجره اصلی (داشبورد)
                 if (currentStage != null) {
                     currentStage.close();
                 }
 
-                // بارگذاری مجدد پنجره لاگین با سایز دقیق و هماهنگ اولیه
+                // ۳. بارگذاری مجدد پنجره لاگین
                 FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("/com/example/frontend/login-view.fxml"));
                 Parent root = fxmlLoader.load();
-                Scene scene = new Scene(root, 600, 800); // 🌟 تضمین ثبات ابعاد
+                Scene scene = new Scene(root, 600, 800);
 
                 Stage loginStage = new Stage();
                 loginStage.setTitle("ورود به سامانه دیوار");
@@ -78,16 +76,16 @@ public class MainApplication extends Application {
                 loginStage.setResizable(false);
                 loginStage.show();
 
-                // نمایش هشدار مناسب به کاربر
+                // 📌 اصلاح: تنظیم مالک آلرت برای جلوگیری از رفتن به زیر پنجره و استفاده از showAndWait
                 Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.initOwner(loginStage); // 👈 اتصال آلرت به پنجره لاگین
                 alert.setTitle("وضعیت حساب");
                 alert.setHeaderText(null);
                 alert.setContentText(warningMessage);
-                alert.show();
+                alert.showAndWait(); // 👈 انتظار برای کلیک کاربر
 
             } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println("خطا در انتقال فرآیند به صفحه لاگین!");
+                System.err.println("❌ خطا در انتقال فرآیند به صفحه لاگین: " + e.getMessage());
             }
         });
     }
@@ -99,15 +97,18 @@ public class MainApplication extends Application {
         try {
             HttpClient client = HttpClient.newHttpClient();
 
-            // ارسال درخواست به اندپوینتی که در مرحله قبل اصلاح کردیم
-            HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create("http://localhost:8080/api/auth/logout?username=" + username))
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.noBody());
 
-            // استفاده از ارسال همزمان (Sync) به دلیل بسته شدن آنی پروسس برنامه
+            // 🔐 نکته امنیتی پیوند: اگر اندپوینت خروج بک‌انند شما فیلتر JWT دارد، خط زیر را فعال کنید:
+            // if (jwtToken != null) { requestBuilder.header("Authorization", "Bearer " + jwtToken); }
+
+            HttpRequest request = requestBuilder.build();
+
+            // استفاده از ارسال همزمان (Sync) به دلیل بسته شدن آنی پروسس برنامه کاملاً درست است
             client.send(request, HttpResponse.BodyHandlers.discarding());
-            System.out.println("🔒 توکن کاربر در دیتابیس بک‌انند null شد.");
+            System.out.println("🔒 توکن کاربر در دیتابیس بک‌انند با موفقیت باطل شد.");
 
         } catch (Exception e) {
             System.err.println("❌ خطا در باطل کردن توکن بک‌انند: " + e.getMessage());

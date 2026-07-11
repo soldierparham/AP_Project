@@ -16,7 +16,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="mainBorderPane" prefHeight="750.0" prefWidth="1100.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.HelloController">
+<BorderPane fx:id="mainBorderPane" prefHeight="750.0" prefWidth="1100.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://github.com/fxml/1" fx:controller="com.example.frontend.HelloController">
 
     <top>
         <HBox alignment="CENTER_RIGHT" prefHeight="65.0" spacing="20.0" style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-width: 0 0 1 0;" BorderPane.alignment="CENTER">
@@ -31,7 +31,11 @@
                         <Insets bottom="8.0" left="16.0" right="16.0" top="8.0" />
                     </padding>
                 </Button>
-                <Button mnemonicParsing="false" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="چت" />
+
+                <Button mnemonicParsing="false" onAction="#onChatScreenClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="چت" />
+
+                <Button mnemonicParsing="false" onAction="#onLoadMyAdsClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="آگهی‌های من" />
+
                 <Button mnemonicParsing="false" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="پشتیبانی" />
 
                 <Region HBox.hgrow="ALWAYS" />
@@ -44,7 +48,7 @@
 
                 <ComboBox prefHeight="35.0" promptText="تهران" style="-fx-background-color: #160f29; -fx-text-fill: white; -fx-background-radius: 6; -fx-cursor: hand;" />
 
-                <Label text="دیوار" textFill="#ffc83b">
+                <Label onMouseClicked="#showHomeScreen" text="دیوار" textFill="#ffc83b" style="-fx-cursor: hand;">
                     <font>
                         <Font name="System Bold" size="26.0" />
                     </font>

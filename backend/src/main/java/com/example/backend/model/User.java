@@ -1,10 +1,14 @@
 package com.example.backend.model;
 
 import jakarta.persistence.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import java.util.Collection;
+import java.util.Collections;
 
 @Entity
 @Table(name = "users")
-public class User {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) // کاملاً هماهنگ با فرآیند AUTOINCREMENT در SQLite
@@ -83,5 +87,25 @@ public class User {
      */
     public void setToken(String token) {
         this.jwtToken = token;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Collections.emptyList(); // یا لیستی از نقش‌ها را برگردانید
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+    @Override
+    public boolean isEnabled() { return true; }
+
+    // متد toString را هم اضافه کنید تا لاگ‌ها تمیز باشند
+    @Override
+    public String toString() {
+        return this.username;
     }
 }

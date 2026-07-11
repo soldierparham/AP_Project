@@ -56,10 +56,14 @@ public class RegisterAdController {
             return;
         }
 
-        // ۲. ساخت بدنه پکت داده JSON
+        // 🛡️ اصلاح کلیدی: ایمن‌سازی متون ورودی برای جلوگیری از خراب شدن ساختار JSON
+        String safeTitle = escapeJson(title);
+        String safeDescription = escapeJson(description);
+
+        // ۲. ساخت بدنه پکت داده JSON به صورت کاملاً امن
         String jsonBody = "{"
-                + "\"title\": \"" + title + "\","
-                + "\"description\": \"" + description + "\","
+                + "\"title\": \"" + safeTitle + "\","
+                + "\"description\": \"" + safeDescription + "\","
                 + "\"price\": " + priceText
                 + "}";
 
@@ -77,6 +81,7 @@ public class RegisterAdController {
                     response.headers().firstValue("Authorization").ifPresent(authHeader -> {
                         if (authHeader.startsWith("Bearer ")) {
                             MainApplication.jwtToken = authHeader.substring(7);
+                            System.out.println("🔄 توکن فرانت‌انند پس از ثبت موفق آگهی تمدید شد.");
                         }
                     });
 
@@ -121,11 +126,23 @@ public class RegisterAdController {
         }
     }
 
+    /**
+     * 🧼 متد کمکی برای خنثی‌سازی کاراکترهای مخرب در فرآیند ساخت دستی JSON
+     */
+    private String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")   // خنثی کردن بک‌اسلش
+                .replace("\"", "\\\"")   // خنثی کردن گیومه
+                .replace("\n", "\\n")    // تبدیل اینتر به کاراکتر مجاز n\
+                .replace("\r", "");      // حذف کاراکترهای بازگشت هدر
+    }
+
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
-        alert.show();
+        // استفاده از showAndWait پایداری بهتری در انتقال فوکوس ایجاد می‌کند
+        alert.showAndWait();
     }
 }
