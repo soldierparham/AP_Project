@@ -36,13 +36,13 @@ public class ChatController {
     private Timeline autoRefreshTimeline;
     private int lastLoadedMessageCount = -1;
 
-    // --- نسخه اصلی (بدون ورودی) ---
+    // --- نسخه اصلی لایه گرافیکی ---
     public HBox createChatView() {
         HBox root = new HBox();
         root.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
         root.setStyle("-fx-background-color: #160f29;");
 
-        // سایدبار
+        // سایدبار گفتگوها
         VBox sidebar = new VBox(12);
         sidebar.setPrefWidth(260);
         sidebar.setMinWidth(260);
@@ -66,7 +66,7 @@ public class ChatController {
         HBox.setHgrow(chatArea, Priority.ALWAYS);
         chatArea.setStyle("-fx-background-color: #160f29;");
 
-        // هدر
+        // هدر چت
         HBox chatHeader = new HBox(10);
         chatHeader.setAlignment(Pos.CENTER_LEFT);
         chatHeader.setPadding(new Insets(15, 20, 15, 20));
@@ -80,16 +80,15 @@ public class ChatController {
         messagesContainer = new VBox(12);
         messagesContainer.setPadding(new Insets(20));
         messagesContainer.setFillWidth(true);
-
-        messagesContainer.setStyle("-fx-background-color: red;");
-        messagesContainer.getChildren().add(new Label("تست: آیا این باکس دیده می‌شود؟"));
+        messagesContainer.setStyle("-fx-background-color: transparent;");
+        messagesContainer.setNodeOrientation(NodeOrientation.LEFT_TO_RIGHT);
 
         messagesScrollPane = new ScrollPane(messagesContainer);
         messagesScrollPane.setFitToWidth(true);
         messagesScrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29; -fx-border-color: transparent;");
         VBox.setVgrow(messagesScrollPane, Priority.ALWAYS);
 
-        // اینپوت
+        // بارگذاری اینپوت پیام
         HBox inputBar = new HBox(10);
         inputBar.setPadding(new Insets(15, 20, 15, 20));
         inputBar.setAlignment(Pos.CENTER_LEFT);
@@ -115,9 +114,9 @@ public class ChatController {
         return root;
     }
 
-    // --- نسخه اضافه شده (رفع ارور شما) ---
+    // --- نسخه مستقیم چت با کاربر هدف ---
     public HBox createChatView(String targetUsername) {
-        HBox root = createChatView(); // فراخوانی نسخه اصلی برای ساخت UI
+        HBox root = createChatView();
         if (targetUsername != null && !targetUsername.isEmpty()) {
             this.currentChatUser = targetUsername;
             Platform.runLater(() -> {
@@ -130,7 +129,6 @@ public class ChatController {
         return root;
     }
 
-    // --- سایر متدها ---
     private void loadChatMessagesFromServer(String withUser) {
         if (withUser == null || MainApplication.jwtToken == null) return;
 
@@ -141,33 +139,23 @@ public class ChatController {
 
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    // ۱. لاگ گرفتن از پاسخ خام برای بررسی
-                    System.out.println("📥 وضعیت سرور: " + response.statusCode());
-                    System.out.println("📥 پاسخ خام: " + response.body());
-
                     if (response.statusCode() == 200) {
                         try {
                             ObjectMapper mapper = new ObjectMapper();
                             JsonNode root = mapper.readTree(response.body());
 
-                            // ۲. چک کردن اینکه آیا اصلاً آرایه است یا خیر
-                            if (!root.isArray()) {
-                                System.err.println("⚠️ هشدار: خروجی سرور آرایه نیست! ساختار داده احتمالاً تغییر کرده.");
-                                return;
-                            }
+                            if (!root.isArray()) return;
 
                             List<HBox> newBubbles = new ArrayList<>();
-
                             for (JsonNode msgNode : root) {
-                                // ۳. استفاده از path به جای get (امن‌تر در برابر NullPointerException)
-                                String sender = msgNode.path("senderUsername").asText("unknown");
-                                String content = msgNode.path("content").asText("بدون محتوا");
+                                String sender = msgNode.path("senderUsername").asText("").isEmpty()
+                                        ? msgNode.path("sender").asText("unknown")
+                                        : msgNode.path("senderUsername").asText("unknown");
 
-                                // لاگ برای دیدن اینکه داده‌ها چطور پردازش می‌شوند
-                                System.out.println("📝 پردازش: فرستنده=" + sender + " | پیام=" + content);
+                                String content = msgNode.path("content").asText("");
 
-                                boolean isMe = MainApplication.currentUsername != null &&
-                                        sender.trim().equalsIgnoreCase(MainApplication.currentUsername.trim());
+                                // 🟢 قانون طلایی حذف واسطه: در چت با با کاربر Asd، اگر فرستنده Asd نباشد، قطعاً شما هستید!
+                                boolean isMe = !sender.trim().equalsIgnoreCase(withUser.trim());
 
                                 newBubbles.add(createMessageBubbleNode(content, isMe));
                             }
@@ -175,7 +163,9 @@ public class ChatController {
                             Platform.runLater(() -> {
                                 messagesContainer.getChildren().clear();
                                 if (newBubbles.isEmpty()) {
-                                    messagesContainer.getChildren().add(new Label("هنوز پیامی رد و بدل نشده..."));
+                                    Label emptyLabel = new Label("هنوز پیامی رد و بدل نشده...");
+                                    emptyLabel.setStyle("-fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn';");
+                                    messagesContainer.getChildren().add(emptyLabel);
                                 } else {
                                     messagesContainer.getChildren().addAll(newBubbles);
                                 }
@@ -185,8 +175,6 @@ public class ChatController {
                         } catch (Exception e) {
                             System.err.println("❌ خطایِ پردازشِ JSON: " + e.getMessage());
                         }
-                    } else {
-                        System.err.println("❌ خطا در دریافت پیام‌ها. کد وضعیت: " + response.statusCode());
                     }
                 })
                 .exceptionally(ex -> {
@@ -228,8 +216,16 @@ public class ChatController {
 
     private void addContactRow(String username, boolean autoSelect) {
         HBox row = new HBox(10);
-        row.setPadding(new Insets(10));
-        row.getChildren().add(new Label("👤 " + username));
+        row.setPadding(new Insets(12, 10, 12, 10));
+        row.setStyle("-fx-cursor: hand; -fx-background-radius: 4px;");
+
+        Label lblUser = new Label("👤 " + username);
+        lblUser.setStyle("-fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
+        row.getChildren().add(lblUser);
+
+        row.setOnMouseEntered(e -> row.setStyle("-fx-background-color: #241942; -fx-cursor: hand; -fx-background-radius: 4px;"));
+        row.setOnMouseExited(e -> row.setStyle("-fx-background-color: transparent;"));
+
         row.setOnMouseClicked(e -> selectUserChat(username, row));
         contactsContainer.getChildren().add(0, row);
     }
@@ -243,6 +239,7 @@ public class ChatController {
                 .thenAccept(res -> {
                     if (res.statusCode() == 200) {
                         Platform.runLater(() -> {
+                            contactsContainer.getChildren().clear();
                             Matcher m = Pattern.compile("\"username\":\"([^\"]+)\"").matcher(res.body());
                             while(m.find()) addContactRow(m.group(1), false);
                         });
@@ -250,13 +247,36 @@ public class ChatController {
                 });
     }
 
+    // --- مدیریت مکانیکی و استایل‌دهی حباب‌ها ---
     private HBox createMessageBubbleNode(String text, boolean isMe) {
         HBox row = new HBox();
+        row.setMaxWidth(Double.MAX_VALUE);
+        row.setNodeOrientation(NodeOrientation.LEFT_TO_RIGHT);
+
         Label lbl = new Label(text);
         lbl.setWrapText(true);
-        lbl.setStyle("-fx-background-color: " + (isMe ? "#3b286b" : "#241942") + "; -fx-text-fill: white; -fx-padding: 10px; -fx-background-radius: 10px;");
-        row.setAlignment(isMe ? Pos.CENTER_LEFT : Pos.CENTER_RIGHT);
-        row.getChildren().add(lbl);
+        lbl.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+
+        String bgColor = isMe ? "#ffc83b" : "#241942"; // طلایی برای شما، بنفش برای مخاطب
+        String textColor = isMe ? "#160f29" : "white"; // متن تیره برای خوانایی روی طلایی
+
+        lbl.setStyle("-fx-background-color: " + bgColor +
+                "; -fx-text-fill: " + textColor +
+                "; -fx-padding: 10px 14px; -fx-background-radius: 10px; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        if (isMe) {
+            // پیام شما: اسپیسر اول قرار می‌گیرد و حباب را به راست هل می‌دهد
+            row.setAlignment(Pos.CENTER_RIGHT);
+            row.getChildren().addAll(spacer, lbl);
+        } else {
+            // پیام مخاطب: حباب اول قرار می‌گیرد و در چپ ثابت می‌ماند
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.getChildren().addAll(lbl, spacer);
+        }
+
         return row;
     }
 
@@ -266,10 +286,5 @@ public class ChatController {
         }));
         autoRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
         autoRefreshTimeline.play();
-    }
-
-    private String extractJsonField(String source, String key) {
-        Matcher m = Pattern.compile("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"").matcher(source);
-        return m.find() ? m.group(1) : "مشخص نشده";
     }
 }
