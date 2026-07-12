@@ -27,9 +27,7 @@ import java.util.regex.Pattern;
 public class HelloController {
 
     public static final String BASE_URL = "http://localhost:8080";
-
-    // 🛠️ اگر این متغیر را true کنید، دکمه‌های ادیت و حذف برای تست روی همه آگهی‌ها نشان داده می‌شوند
-    private static final boolean FORCE_SHOW_BUTTONS = true;
+    private static final boolean FORCE_SHOW_BUTTONS = false;
 
     @FXML
     private BorderPane mainBorderPane;
@@ -75,18 +73,13 @@ public class HelloController {
     private void onChatScreenClick() {
         System.out.println("🔄 در حال بارگذاری محیط گفتگوها...");
         ChatController chatController = new ChatController();
-        HBox chatLayout = chatController.createChatView(); // باز کردن صفحه چت عمومی/کلی
+        HBox chatLayout = chatController.createChatView();
         mainBorderPane.setCenter(chatLayout);
     }
 
-    /**
-     * 💬 🚀 متد جدید: هدایت مستقیم و باز کردن صفحه چت با یک کاربر خاص
-     */
     private void openChatWithUser(String targetUsername) {
         System.out.println("🔄 در حال انتقال مستقیم به محیط گفتگو با: " + targetUsername);
         ChatController chatController = new ChatController();
-
-        // پاس دادن نام کاربری مالک آگهی به متد سازنده ویو چت
         HBox chatLayout = chatController.createChatView(targetUsername);
         mainBorderPane.setCenter(chatLayout);
     }
@@ -130,7 +123,8 @@ public class HelloController {
 
                     Platform.runLater(() -> {
                         if (response.statusCode() == 200) {
-                            renderAdvertisements(response.body());
+                            // 🟢 اینجا false پاس داده می‌شود چون صفحه اصلی است و همه آگهی‌ها مال ما نیستند
+                            renderAdvertisements(response.body(), false);
                         } else {
                             showErrorAlert("خطای سیستم", "امکان دریافت آگهی‌ها از دیتابیس وجود ندارد. کد: " + response.statusCode());
                         }
@@ -139,9 +133,6 @@ public class HelloController {
                 .exceptionally(this::handleNetworkException);
     }
 
-    /**
-     * 👑 متد حذف نماد علمی و ۳ رقمی کردن قیمت‌ها در فرانت‌اند
-     */
     private String cleanPrice(String priceStr) {
         try {
             if (priceStr == null || priceStr.trim().isEmpty() || priceStr.equals("مشخص نشده")) return "۰";
@@ -153,10 +144,8 @@ public class HelloController {
         }
     }
 
-    /**
-     * 🎨 رندر آگهی‌ها به همراه بررسی هوشمند مالکیت برای نمایش دکمه‌ها
-     */
-    private void renderAdvertisements(String responseBody) {
+    // 🟢 اصلاح شد: پارامتر boolean isMyAdsView اضافه شد تا وضعیت صفحه مشخص شود
+    private void renderAdvertisements(String responseBody, boolean isMyAdsView) {
         FlowPane gridPane = new FlowPane();
         gridPane.setHgap(18);
         gridPane.setVgap(18);
@@ -185,7 +174,8 @@ public class HelloController {
 
             System.out.println("🔍 [Debug] آگهی شناسه: " + adId + " | مالک آگهی: '" + adOwner + "' | کاربر جاری: '" + currentUser + "'");
 
-            boolean isOwner = FORCE_SHOW_BUTTONS || (!adOwner.equals("مشخص نشده") && adOwner.equalsIgnoreCase(currentUser));
+            // 🟢 اصلاح شد: اگر در صفحه آگهی‌های من باشیم (isMyAdsView == true)، دکمه‌ها بدون قید و شرط نشان داده می‌شوند
+            boolean isOwner = isMyAdsView || FORCE_SHOW_BUTTONS || (!adOwner.equals("مشخص نشده") && adOwner.equalsIgnoreCase(currentUser));
 
             String title = extractJsonField(fields, "title");
             String description = extractJsonField(fields, "description");
@@ -240,7 +230,7 @@ public class HelloController {
 
                 btnDelete.setOnAction(e -> {
                     if (adId != null) {
-                        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION, "آیا از حذف این آگهی اطمینان دارید推广؟", ButtonType.YES, ButtonType.NO);
+                        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION, "آیا از حذف این آگهی اطمینان دارید؟", ButtonType.YES, ButtonType.NO);
                         confirmAlert.setHeaderText(null);
                         confirmAlert.showAndWait().ifPresent(response -> {
                             if (response == ButtonType.YES) {
@@ -278,9 +268,6 @@ public class HelloController {
         System.out.println("✅ تعداد " + counter + " آگهی با موفقیت تفکیک و رندر شد.");
     }
 
-    /**
-     * 📄 متد نمایش صفحه اختصاصی و جزئیات کامل آگهی کلیک شده
-     */
     private void openAdDetailsPage(Long adId, String title, String description, String rawPrice, String owner) {
         VBox detailsContainer = new VBox(20);
         detailsContainer.setPadding(new Insets(30));
@@ -317,7 +304,6 @@ public class HelloController {
         Button btnStartChat = new Button("💬 شروع گفتگو با آگهی‌دهنده");
         btnStartChat.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 6px; -fx-padding: 10px 20px;");
 
-        // ✅ اصلاح شد: کلیک روی این دکمه مستقیماً متد ورود به گفتگو با کاربر هدف را صدا می‌زند
         btnStartChat.setOnAction(e -> openChatWithUser(owner));
 
         infoBox.getChildren().addAll(lblTitle, lblPrice, lblOwner, separator, lblDescTitle, lblDesc, btnStartChat);
@@ -330,9 +316,6 @@ public class HelloController {
         mainBorderPane.setCenter(scrollPane);
     }
 
-    /**
-     * 📱 متد ساخت پاپ‌آآپ مودال برای ویرایش آگهی
-     */
     private void openEditDialog(Long adId, String currentTitle, String currentDesc, String currentPrice) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("✏️ ویرایش آگهی");
@@ -447,7 +430,8 @@ public class HelloController {
 
                     Platform.runLater(() -> {
                         if (response.statusCode() == 200) {
-                            renderAdvertisements(response.body());
+                            // 🟢 اینجا true پاس داده می‌شود چون صد در صد تمام آگهی‌های برگشتی متعلق به خود کاربر هستند
+                            renderAdvertisements(response.body(), true);
                             showSuccessAlert("بارگذاری موفق", "آگهی‌های شما با موفقیت دریافت شد.");
                         } else {
                             showErrorAlert("خطا", "عدم امکان بارگذاری آگهی‌ها. کد: " + response.statusCode());
