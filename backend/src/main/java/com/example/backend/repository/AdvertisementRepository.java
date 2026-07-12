@@ -9,6 +9,9 @@ import java.util.List;
 @Repository
 public interface AdvertisementRepository extends JpaRepository<Advertisement, Long> {
 
-    // 🔍 کوئری اختصاصی برای پیدا کردن آگهی‌های یک کاربر خاص
+    // 1. لیست آگهی‌های اختصاصی هر کاربر (برای صفحه "آگهی‌های من")
     List<Advertisement> findByOwnerUsername(String ownerUsername);
+
+    // 2. لیست تمام آگهی‌ها به جز مالِ خودِ کاربر (برای صفحه اصلی)
+    List<Advertisement> findByOwnerUsernameNot(String ownerUsername);
 }

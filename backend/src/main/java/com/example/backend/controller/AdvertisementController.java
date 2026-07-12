@@ -34,7 +34,7 @@ public class AdvertisementController {
     private AdvertisementService advertisementService;
 
     /**
-     * 📥 ۱. دریافت تمام آگهی‌های موجود در سیستم (GET)
+     * 📥 ۱. دریافت تمام آگهی‌های موجود در سیستم (به جز آگهی‌های خود کاربر جاری)
      */
     @GetMapping("/advertisements")
     public ResponseEntity<?> getAdvertisements(@RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -56,13 +56,13 @@ public class AdvertisementController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
             }
 
-            // 🟢 دریافت واقعی داده‌ها از دیتابیس
-            List<Advertisement> allAds = advertisementService.getAllAdvertisements();
+            // 🟢 فیلتر هوشمند: فقط دریافت آگهی‌هایی که مالک آن‌ها کاربر فعلی نیست
+            List<Advertisement> availableAds = advertisementService.getAdsExceptOwner(username);
 
             return ResponseEntity.ok(Map.of(
                     "status", "success",
                     "message", "لیست آگهی‌ها با موفقیت بارگذاری شد.",
-                    "data", allAds
+                    "data", availableAds
             ));
 
         } catch (ExpiredJwtException e) {
