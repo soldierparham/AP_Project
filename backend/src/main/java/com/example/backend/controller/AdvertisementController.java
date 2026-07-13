@@ -28,7 +28,7 @@ public class AdvertisementController {
     private AuthService authService;
 
     @Autowired
-    private UserRepository userRepository; // 💾 برای به‌روزرسانی توکن جدید در دیتابیس SQLite
+    private UserRepository userRepository;
 
     @Autowired
     private AdvertisementService advertisementService;
@@ -56,7 +56,6 @@ public class AdvertisementController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
             }
 
-            // 🟢 فیلتر هوشمند: فقط دریافت آگهی‌هایی که مالک آن‌ها کاربر فعلی نیست
             List<Advertisement> availableAds = advertisementService.getAdsExceptOwner(username);
 
             return ResponseEntity.ok(Map.of(
@@ -105,21 +104,23 @@ public class AdvertisementController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
             }
 
-            // 🟢 ذخیره واقعی آگهی در دیتابیس SQLite
+            // 🟢 اعتبارسنجی فیلدهای جدید در سمت سرور
+            if (!advertisementData.containsKey("city") || advertisementData.get("city") == null ||
+                    !advertisementData.containsKey("category") || advertisementData.get("category") == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "ارائه شهر و دسته‌بندی برای ثبت آگهی الزامی است."));
+            }
+
             System.out.println("📝 آگهی جدید از کاربر " + username + " دریافت شد: " + advertisementData);
             Advertisement savedAd = advertisementService.saveAdvertisement(advertisementData, username);
 
-            // 🔄 ۳. تمدید زمان (Sliding Expiration): تولید توکن جدید و تازه‌نفس
             String newToken = jwtUtil.generateToken(username);
 
-            // 💾 ۴. به‌روزرسانی فوری توکن جدید در دیتابیس SQLite
             userRepository.findByUsername(username).ifPresent(user -> {
                 user.setToken(newToken);
                 userRepository.saveAndFlush(user);
                 System.out.println("🔄 [POST] زمان توکن کاربر " + username + " هنگام ثبت آگهی تمدید و در دیتابیس آپدیت شد.");
             });
 
-            // 🌐 ۵. تزریق توکن جدید به هدرهای پاسخ HTTP
             response.setHeader("Authorization", "Bearer " + newToken);
             response.setHeader("Access-Control-Expose-Headers", "Authorization");
 
@@ -160,7 +161,6 @@ public class AdvertisementController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست شما معتبر نیست."));
             }
 
-            // 🟢 دریافت آگهی‌های فیلتر شده بر اساس مالک آگهی
             List<Advertisement> myAds = advertisementService.getAdsByUsername(username);
 
             return ResponseEntity.ok(Map.of(
@@ -178,7 +178,7 @@ public class AdvertisementController {
     }
 
     /**
-     * ✏️ ۴. ویرایش آگهی (PUT) + تمدید توکن برای تجربه کاربری بهتر
+     * ✏️ ۴. ویرایش آگهی (PUT) + تمدید توکن
      */
     @PutMapping("/advertisements/{id}")
     public ResponseEntity<?> updateAdvertisement(
@@ -198,7 +198,6 @@ public class AdvertisementController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست معتبر نیست."));
             }
 
-            // 🔍 پیدا کردن آگهی موجود
             Optional<Advertisement> adOpt = advertisementService.getAdById(id);
             if (adOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "آگهی مورد نظر یافت نشد."));
@@ -206,16 +205,13 @@ public class AdvertisementController {
 
             Advertisement existingAd = adOpt.get();
 
-            // 🛡️ بررسی امنیتی فوق‌العاده مهم: تطابق مالک آگهی با توکن ارسال شده
             if (!existingAd.getOwnerUsername().equals(username)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("message", "شما اجازه ویرایش این آگهی را ندارید!"));
             }
 
-            // 🟢 ویرایش و ذخیره آگهی
             Advertisement updatedAd = advertisementService.updateAdvertisement(existingAd, updatedData);
 
-            // 🔄 تمدید توکن در عملیات ویرایش
             String newToken = jwtUtil.generateToken(username);
             userRepository.findByUsername(username).ifPresent(user -> {
                 user.setToken(newToken);
@@ -260,7 +256,6 @@ public class AdvertisementController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "نشست معتبر نیست."));
             }
 
-            // 🔍 پیدا کردن آگهی
             Optional<Advertisement> adOpt = advertisementService.getAdById(id);
             if (adOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "آگهی یافت نشد."));
@@ -268,17 +263,14 @@ public class AdvertisementController {
 
             Advertisement ad = adOpt.get();
 
-            // 🛡️ بررسی امنیتی فوق‌العاده مهم: فقط مالک آگهی می‌تواند آن را حذف کند
             if (!ad.getOwnerUsername().equals(username)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("message", "شما اجازه حذف این آگهی را ندارید!"));
             }
 
-            // 🟢 حذف فیزیکی از دیتابیس
             advertisementService.deleteAd(id);
             System.out.println("🗑️ آگهی شماره " + id + " با موفقیت توسط " + username + " حذف شد.");
 
-            // 🔄 تمدید توکن در عملیات حذف
             String newToken = jwtUtil.generateToken(username);
             userRepository.findByUsername(username).ifPresent(user -> {
                 user.setToken(newToken);

@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
@@ -37,6 +38,28 @@
                 <TextField fx:id="priceInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="مثال: 45000000" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
             </children>
         </VBox>
+
+        <HBox spacing="15.0" alignment="TOP_RIGHT">
+            <children>
+                <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="دسته‌بندی" textFill="#b9a6df">
+                            <font><Font size="13.0" /></font>
+                        </Label>
+                        <ComboBox fx:id="categoryInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" maxWidth="1.7976931348623157E308" promptText="انتخاب دسته‌بندی..." style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;" />
+                    </children>
+                </VBox>
+
+                <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="شهر" textFill="#b9a6df">
+                            <font><Font size="13.0" /></font>
+                        </Label>
+                        <ComboBox fx:id="cityInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" maxWidth="1.7976931348623157E308" promptText="انتخاب شهر..." style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;" />
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
 
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>

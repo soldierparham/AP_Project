@@ -33,19 +33,49 @@ public class AdvertisementService {
         return advertisementRepository.findById(id);
     }
 
+    /**
+     * 📥 ثبت آگهی جدید به همراه ذخیره‌سازی شهر و دسته‌بندی
+     */
     public Advertisement saveAdvertisement(Map<String, Object> data, String username) {
         Advertisement ad = new Advertisement();
         ad.setTitle((String) data.get("title"));
         ad.setDescription((String) data.get("description"));
         ad.setPrice(Double.valueOf(data.get("price").toString()));
         ad.setOwnerUsername(username);
+
+        // 🟢 استخراج و مقداردهی فیلدهای جدید شهر و دسته‌بندی
+        if (data.containsKey("city")) {
+            ad.setCity((String) data.get("city"));
+        }
+        if (data.containsKey("category")) {
+            ad.setCategory((String) data.get("category"));
+        }
+
         return advertisementRepository.save(ad);
     }
 
+    /**
+     * ✏️ ویرایش آگهی موجود به همراه پشتیبانی از تغییر شهر و دسته‌بندی
+     */
     public Advertisement updateAdvertisement(Advertisement existingAd, Map<String, Object> updatedData) {
-        if (updatedData.containsKey("title")) existingAd.setTitle((String) updatedData.get("title"));
-        if (updatedData.containsKey("description")) existingAd.setDescription((String) updatedData.get("description"));
-        if (updatedData.containsKey("price")) existingAd.setPrice(Double.valueOf(updatedData.get("price").toString()));
+        if (updatedData.containsKey("title")) {
+            existingAd.setTitle((String) updatedData.get("title"));
+        }
+        if (updatedData.containsKey("description")) {
+            existingAd.setDescription((String) updatedData.get("description"));
+        }
+        if (updatedData.containsKey("price")) {
+            existingAd.setPrice(Double.valueOf(updatedData.get("price").toString()));
+        }
+
+        // 🟢 بررسی و اعمال تغییرات جدید روی شهر و دسته‌بندی (در صورت ارسال از سمت کلاینت)
+        if (updatedData.containsKey("city")) {
+            existingAd.setCity((String) updatedData.get("city"));
+        }
+        if (updatedData.containsKey("category")) {
+            existingAd.setCategory((String) updatedData.get("category"));
+        }
+
         return advertisementRepository.save(existingAd);
     }
 

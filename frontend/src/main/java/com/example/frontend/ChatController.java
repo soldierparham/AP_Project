@@ -18,8 +18,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class ChatController {
 
@@ -32,9 +30,13 @@ public class ChatController {
     private Label lblActiveChatUser;
     private TextField txtMessageInput;
     private Button btnSend;
+
+    // 🔑 متغیرهای ردیابی موقعیت گفتگو
+    private Long currentConversationId = null;
     private String currentChatUser = null;
+    private String myUsername = null;
     private Timeline autoRefreshTimeline;
-    private int lastLoadedMessageCount = -1;
+    private int conversationPollCounter = 0;
 
     // --- نسخه اصلی لایه گرافیکی ---
     public HBox createChatView() {
@@ -99,9 +101,10 @@ public class ChatController {
         txtMessageInput.setStyle("-fx-background-color: #160f29; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6px; -fx-padding: 10px;");
         HBox.setHgrow(txtMessageInput, Priority.ALWAYS);
         txtMessageInput.setDisable(true);
+        txtMessageInput.setOnAction(e -> handleSendMessage());
 
         btnSend = new Button("ارسال 🚀");
-        btnSend.setStyle("-fx-background-color: #ffc83b; -fx-padding: 10px 20px; -fx-background-radius: 6px;");
+        btnSend.setStyle("-fx-background-color: #ffc83b; -fx-padding: 10px 20px; -fx-background-radius: 6px; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-cursor: hand;");
         btnSend.setDisable(true);
         btnSend.setOnAction(e -> handleSendMessage());
 
@@ -109,31 +112,103 @@ public class ChatController {
         chatArea.getChildren().addAll(chatHeader, messagesScrollPane, inputBar);
         root.getChildren().addAll(sidebar, chatArea);
 
+        System.out.println("🔍 [DEBUG] شروع ساخت لایه چت...");
+        extractMyUsername();
         loadRealConversations();
         startLiveChatPolling();
         return root;
     }
 
-    // --- نسخه مستقیم چت با کاربر هدف ---
-    public HBox createChatView(String targetUsername) {
+    // --- شروع چت با فرستادن شناسه آگهی ---
+    public HBox createChatView(Long advertisementId, String targetUsername) {
+        System.out.println("🔍 [DEBUG] متد چت مستقیم با آگهی فراخوانی شد. شناسه آگهی: " + advertisementId + "، مخاطب هدف: " + targetUsername);
         HBox root = createChatView();
-        if (targetUsername != null && !targetUsername.isEmpty()) {
-            this.currentChatUser = targetUsername;
-            Platform.runLater(() -> {
-                lblActiveChatUser.setText("💬 گفتگو با: " + targetUsername);
-                txtMessageInput.setDisable(false);
-                btnSend.setDisable(false);
-                loadChatMessagesFromServer(targetUsername);
-            });
+
+        if (MainApplication.jwtToken == null) {
+            System.err.println("❌ [DEBUG ERROR] توکن JWT خالی است! (MainApplication.jwtToken = null)");
+            lblActiveChatUser.setText("⚠️ توکن امنیتی وجود ندارد. ابتدا لاگین کنید.");
+            return root;
+        }
+
+        if (advertisementId != null) {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/api/chat/conversations/start?adId=" + advertisementId))
+                    .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(res -> {
+                        System.out.println("🔍 [DEBUG] پاسخ سرور برای ساخت چت: کد وضعیت " + res.statusCode());
+                        System.out.println("🔍 [DEBUG] بدنه پاسخ: " + res.body());
+
+                        if (res.statusCode() == 200) {
+                            try {
+                                ObjectMapper mapper = new ObjectMapper();
+                                JsonNode node = mapper.readTree(res.body());
+                                Long convId = node.path("id").asLong();
+                                String adTitle = node.path("advertisement").path("title").asText("آگهی");
+
+                                Platform.runLater(() -> {
+                                    System.out.println("✅ [DEBUG] چت با موفقیت با شناسه گفتگو " + convId + " فعال شد.");
+                                    selectConversation(convId, targetUsername, adTitle);
+                                });
+                            } catch (Exception e) {
+                                System.err.println("❌ [DEBUG ERROR] خطا در پارس کردن جیسون پاسخ شروع چت: " + e.getMessage());
+                            }
+                        } else {
+                            Platform.runLater(() -> {
+                                lblActiveChatUser.setText("⚠️ خطا از سمت سرور: " + res.body());
+                                txtMessageInput.setDisable(true);
+                                btnSend.setDisable(true);
+                            });
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        System.err.println("❌ [DEBUG ERROR] خطای شبکه در ارتباط با سرور: " + ex.getMessage());
+                        return null;
+                    });
         }
         return root;
     }
 
-    private void loadChatMessagesFromServer(String withUser) {
-        if (withUser == null || MainApplication.jwtToken == null) return;
+    public HBox createChatView(String targetUsername) {
+        System.out.println("🔍 [DEBUG] متد قدیمی چت با نام کاربری فراخوانی شد: " + targetUsername);
+        HBox root = createChatView();
+        if (targetUsername != null && !targetUsername.isEmpty()) {
+            this.currentChatUser = targetUsername;
+            Platform.runLater(() -> {
+                lblActiveChatUser.setText("💬 در حال جستجوی گفتگو با: " + targetUsername);
+            });
+            loadRealConversations();
+        }
+        return root;
+    }
+
+    private void extractMyUsername() {
+        if (MainApplication.jwtToken == null) {
+            System.err.println("⚠️ [DEBUG] توکن JWT برای استخراج نام کاربری خالی است.");
+            return;
+        }
+        try {
+            String[] parts = MainApplication.jwtToken.split("\\.");
+            if (parts.length >= 2) {
+                String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode node = mapper.readTree(payload);
+                myUsername = node.path("sub").asText("");
+                System.out.println("🔑 [DEBUG] نام کاربری شما با موفقیت از JWT استخراج شد: " + myUsername);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ [DEBUG ERROR] خطا در رمزگشایی توکن: " + e.getMessage());
+        }
+    }
+
+    private void loadChatMessagesFromServer(Long convId) {
+        if (convId == null) return;
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/chat/messages?with=" + withUser))
+                .uri(URI.create(BASE_URL + "/api/chat/messages?conversationId=" + convId))
                 .header("Authorization", "Bearer " + MainApplication.jwtToken)
                 .GET().build();
 
@@ -148,15 +223,9 @@ public class ChatController {
 
                             List<HBox> newBubbles = new ArrayList<>();
                             for (JsonNode msgNode : root) {
-                                String sender = msgNode.path("senderUsername").asText("").isEmpty()
-                                        ? msgNode.path("sender").asText("unknown")
-                                        : msgNode.path("senderUsername").asText("unknown");
-
+                                String sender = msgNode.path("senderUsername").asText("unknown");
                                 String content = msgNode.path("content").asText("");
-
-                                // 🟢 قانون طلایی حذف واسطه: در چت با با کاربر Asd، اگر فرستنده Asd نباشد، قطعاً شما هستید!
-                                boolean isMe = !sender.trim().equalsIgnoreCase(withUser.trim());
-
+                                boolean isMe = sender.trim().equalsIgnoreCase(myUsername);
                                 newBubbles.add(createMessageBubbleNode(content, isMe));
                             }
 
@@ -173,20 +242,18 @@ public class ChatController {
                             });
 
                         } catch (Exception e) {
-                            System.err.println("❌ خطایِ پردازشِ JSON: " + e.getMessage());
+                            System.err.println("❌ [DEBUG ERROR] خطای پارس کردن پیام‌ها: " + e.getMessage());
                         }
                     }
-                })
-                .exceptionally(ex -> {
-                    System.err.println("❌ خطای شبکه: " + ex.getMessage());
-                    return null;
                 });
     }
 
     private void handleSendMessage() {
         String text = txtMessageInput.getText().trim();
-        if (text.isEmpty() || currentChatUser == null) return;
-        String jsonBody = "{\"receiverUsername\":\"" + currentChatUser + "\",\"content\":\"" + text.replace("\"", "\\\"") + "\"}";
+        if (text.isEmpty() || currentConversationId == null) return;
+
+        String jsonBody = "{\"conversationId\":" + currentConversationId + ",\"content\":\"" + text.replace("\"", "\\\"") + "\"}";
+        System.out.println("📤 [DEBUG] در حال ارسال پیام: " + jsonBody);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/chat/send"))
@@ -198,56 +265,142 @@ public class ChatController {
         txtMessageInput.clear();
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(res -> {
-                    if (res.statusCode() == 200) {
-                        lastLoadedMessageCount = -1;
-                        Platform.runLater(() -> loadChatMessagesFromServer(currentChatUser));
-                    }
-                });
-    }
-
-    private void selectUserChat(String username, HBox row) {
-        currentChatUser = username;
-        lblActiveChatUser.setText("💬 " + username);
-        txtMessageInput.setDisable(false);
-        btnSend.setDisable(false);
-        lastLoadedMessageCount = -1;
-        loadChatMessagesFromServer(username);
-    }
-
-    private void addContactRow(String username, boolean autoSelect) {
-        HBox row = new HBox(10);
-        row.setPadding(new Insets(12, 10, 12, 10));
-        row.setStyle("-fx-cursor: hand; -fx-background-radius: 4px;");
-
-        Label lblUser = new Label("👤 " + username);
-        lblUser.setStyle("-fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
-        row.getChildren().add(lblUser);
-
-        row.setOnMouseEntered(e -> row.setStyle("-fx-background-color: #241942; -fx-cursor: hand; -fx-background-radius: 4px;"));
-        row.setOnMouseExited(e -> row.setStyle("-fx-background-color: transparent;"));
-
-        row.setOnMouseClicked(e -> selectUserChat(username, row));
-        contactsContainer.getChildren().add(0, row);
-    }
-
-    private void loadRealConversations() {
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/chat/conversations"))
-                .header("Authorization", "Bearer " + MainApplication.jwtToken)
-                .GET().build();
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(res -> {
+                    System.out.println("🔍 [DEBUG] نتیجه ارسال پیام: کد وضعیت " + res.statusCode());
                     if (res.statusCode() == 200) {
                         Platform.runLater(() -> {
-                            contactsContainer.getChildren().clear();
-                            Matcher m = Pattern.compile("\"username\":\"([^\"]+)\"").matcher(res.body());
-                            while(m.find()) addContactRow(m.group(1), false);
+                            loadChatMessagesFromServer(currentConversationId);
+                            loadRealConversations();
                         });
                     }
                 });
     }
 
-    // --- مدیریت مکانیکی و استایل‌دهی حباب‌ها ---
+    private void selectConversation(Long convId, String otherUsername, String adTitle) {
+        System.out.println("🟢 [DEBUG] متد selectConversation اجرا شد. شناسه: " + convId + "، مخاطب: " + otherUsername);
+        currentConversationId = convId;
+        currentChatUser = otherUsername;
+        lblActiveChatUser.setText("💬 گفتگو با: " + otherUsername + " (آگهی: " + adTitle + ")");
+
+        // 🔓 فعال کردن فیلد متن و دکمه ارسال
+        txtMessageInput.setDisable(false);
+        btnSend.setDisable(false);
+
+        loadChatMessagesFromServer(convId);
+        Platform.runLater(this::loadRealConversations);
+    }
+
+    private void addContactRow(Long convId, String otherUsername, String adTitle) {
+        HBox row = new HBox(10);
+        row.setPadding(new Insets(10, 10, 10, 10));
+
+        if (currentConversationId != null && currentConversationId.equals(convId)) {
+            row.setStyle("-fx-background-color: #241942; -fx-background-radius: 4px; -fx-cursor: hand;");
+        } else {
+            row.setStyle("-fx-background-color: transparent; -fx-background-radius: 4px; -fx-cursor: hand;");
+        }
+
+        VBox textData = new VBox(4);
+        Label lblUser = new Label("👤 " + otherUsername);
+        lblUser.setStyle("-fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-font-weight: bold;");
+        Label lblAd = new Label("📦 " + adTitle);
+        lblAd.setStyle("-fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn'; -fx-font-size: 11px;");
+
+        textData.getChildren().addAll(lblUser, lblAd);
+        row.getChildren().add(textData);
+
+        row.setOnMouseEntered(e -> {
+            if (currentConversationId == null || !currentConversationId.equals(convId)) {
+                row.setStyle("-fx-background-color: #241942; -fx-cursor: hand; -fx-background-radius: 4px;");
+            }
+        });
+        row.setOnMouseExited(e -> {
+            if (currentConversationId == null || !currentConversationId.equals(convId)) {
+                row.setStyle("-fx-background-color: transparent;");
+            }
+        });
+
+        row.setOnMouseClicked(e -> selectConversation(convId, otherUsername, adTitle));
+        contactsContainer.getChildren().add(0, row);
+    }
+
+    private void loadRealConversations() {
+        if (MainApplication.jwtToken == null) return;
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/chat/conversations"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET().build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(res -> {
+                    if (res.statusCode() == 200) {
+                        try {
+                            ObjectMapper mapper = new ObjectMapper();
+                            JsonNode root = mapper.readTree(res.body());
+                            System.out.println("🔍 [DEBUG] گفتگوهای دریافت شده از سرور: " + root.toString());
+
+                            Platform.runLater(() -> {
+                                contactsContainer.getChildren().clear();
+                                boolean foundActiveChat = false;
+                                Long firstConvId = null;
+                                String firstOtherUser = "";
+                                String firstAdTitle = "";
+
+                                if (root.isArray() && root.size() > 0) {
+                                    for (JsonNode node : root) {
+                                        Long convId = node.path("id").asLong();
+                                        String adTitle = node.path("advertisement").path("title").asText("آگهی");
+                                        String buyer = node.path("buyerUsername").asText("");
+                                        String seller = node.path("sellerUsername").asText("");
+
+                                        String otherUser = "";
+                                        if (myUsername != null) {
+                                            otherUser = myUsername.equalsIgnoreCase(buyer) ? seller : buyer;
+                                        } else {
+                                            otherUser = buyer;
+                                        }
+
+                                        if (convId != 0 && !otherUser.isEmpty()) {
+                                            addContactRow(convId, otherUser, adTitle);
+
+                                            if (firstConvId == null) {
+                                                firstConvId = convId;
+                                                firstOtherUser = otherUser;
+                                                firstAdTitle = adTitle;
+                                            }
+
+                                            if (currentConversationId != null && currentConversationId.equals(convId)) {
+                                                foundActiveChat = true;
+                                            }
+
+                                            if (currentConversationId == null && currentChatUser != null && currentChatUser.equalsIgnoreCase(otherUser)) {
+                                                selectConversation(convId, otherUser, adTitle);
+                                                foundActiveChat = true;
+                                            }
+                                        }
+                                    }
+
+                                    if (currentConversationId == null && firstConvId != null && !foundActiveChat && currentChatUser == null) {
+                                        System.out.println("🟢 [DEBUG] هیچ چتی فعال نبود. به صورت خودکار اولین چت انتخاب شد.");
+                                        selectConversation(firstConvId, firstOtherUser, firstAdTitle);
+                                    }
+
+                                } else {
+                                    System.out.println("⚠️ [DEBUG] لیست چت‌های دریافتی خالی است.");
+                                    lblActiveChatUser.setText("💬 هنوز گفتگویی شروع نشده است.");
+                                    txtMessageInput.setDisable(true);
+                                    btnSend.setDisable(true);
+                                }
+                            });
+                        } catch (Exception e) {
+                            System.err.println("❌ [DEBUG ERROR] خطای پارس کردن کل گفتگوها: " + e.getMessage());
+                        }
+                    } else {
+                        System.err.println("❌ [DEBUG ERROR] خطا در دریافت گفتگوها. کد خطا: " + res.statusCode());
+                    }
+                });
+    }
+
     private HBox createMessageBubbleNode(String text, boolean isMe) {
         HBox row = new HBox();
         row.setMaxWidth(Double.MAX_VALUE);
@@ -255,24 +408,25 @@ public class ChatController {
 
         Label lbl = new Label(text);
         lbl.setWrapText(true);
+        lbl.setMaxWidth(320);
         lbl.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
-        String bgColor = isMe ? "#ffc83b" : "#241942"; // طلایی برای شما، بنفش برای مخاطب
-        String textColor = isMe ? "#160f29" : "white"; // متن تیره برای خوانایی روی طلایی
+        String bgColor = isMe ? "#ffc83b" : "#241942";
+        String textColor = isMe ? "#160f29" : "white";
+        String borderRadius = isMe ? "12px 12px 0px 12px" : "12px 12px 12px 0px";
 
         lbl.setStyle("-fx-background-color: " + bgColor +
                 "; -fx-text-fill: " + textColor +
-                "; -fx-padding: 10px 14px; -fx-background-radius: 10px; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
+                "; -fx-padding: 10px 14px; -fx-background-radius: " + borderRadius +
+                "; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         if (isMe) {
-            // پیام شما: اسپیسر اول قرار می‌گیرد و حباب را به راست هل می‌دهد
             row.setAlignment(Pos.CENTER_RIGHT);
             row.getChildren().addAll(spacer, lbl);
         } else {
-            // پیام مخاطب: حباب اول قرار می‌گیرد و در چپ ثابت می‌ماند
             row.setAlignment(Pos.CENTER_LEFT);
             row.getChildren().addAll(lbl, spacer);
         }
@@ -282,7 +436,15 @@ public class ChatController {
 
     private void startLiveChatPolling() {
         autoRefreshTimeline = new Timeline(new KeyFrame(Duration.seconds(3), e -> {
-            if (currentChatUser != null) loadChatMessagesFromServer(currentChatUser);
+            if (currentConversationId != null) {
+                loadChatMessagesFromServer(currentConversationId);
+            }
+
+            conversationPollCounter++;
+            if (conversationPollCounter >= 3) {
+                loadRealConversations();
+                conversationPollCounter = 0;
+            }
         }));
         autoRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
         autoRefreshTimeline.play();

@@ -14,6 +14,10 @@ public class Advertisement {
     private String description;
     private Double price;
 
+    // 🏙️ فیلدهای جدید برای نگهداری موقعیت مکانی و صنف کالا
+    private String city;
+    private String category;
+
     // 🔑 ذخیره نام کاربری مالک آگهی برای بررسی‌های امنیتی CRUD
     private String ownerUsername;
 
@@ -29,6 +33,14 @@ public class Advertisement {
 
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
+
+    // 🟢 گتر و ستر برای شهر
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    // 🟢 گتر و ستر برای دسته‌بندی
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
     public String getOwnerUsername() { return ownerUsername; }
     public void setOwnerUsername(String ownerUsername) { this.ownerUsername = ownerUsername; }

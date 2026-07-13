@@ -77,10 +77,12 @@ public class HelloController {
         mainBorderPane.setCenter(chatLayout);
     }
 
-    private void openChatWithUser(String targetUsername) {
-        System.out.println("🔄 در حال انتقال مستقیم به محیط گفتگو با: " + targetUsername);
+    private void openChatWithUser(Long adId, String targetUsername) {
+        System.out.println("🔄 در حال انتقال مستقیم به محیط گفتگو با: " + targetUsername + " برای آگهی با شناسه: " + adId);
         ChatController chatController = new ChatController();
-        HBox chatLayout = chatController.createChatView(targetUsername);
+
+        // 🟢 حل مشکل: حالا متد دو ورودیِ کارساز را صدا می‌زنیم تا گفتگو ثبت شود
+        HBox chatLayout = chatController.createChatView(adId, targetUsername);
         mainBorderPane.setCenter(chatLayout);
     }
 
@@ -304,8 +306,8 @@ public class HelloController {
         Button btnStartChat = new Button("💬 شروع گفتگو با آگهی‌دهنده");
         btnStartChat.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 6px; -fx-padding: 10px 20px;");
 
-        btnStartChat.setOnAction(e -> openChatWithUser(owner));
-
+        btnStartChat.setOnAction(e -> openChatWithUser(adId, owner));
+        
         infoBox.getChildren().addAll(lblTitle, lblPrice, lblOwner, separator, lblDescTitle, lblDesc, btnStartChat);
         detailsContainer.getChildren().addAll(btnBack, infoBox);
 
