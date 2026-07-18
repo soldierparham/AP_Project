@@ -21,6 +21,7 @@
             </VBox.margin>
         </Label>
 
+        <!-- ۱. عنوان آگهی -->
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
                 <Label text="عنوان آگهی" textFill="#b9a6df">
@@ -30,6 +31,7 @@
             </children>
         </VBox>
 
+        <!-- ۲. قیمت -->
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
                 <Label text="قیمت (تومان)" textFill="#b9a6df">
@@ -39,6 +41,7 @@
             </children>
         </VBox>
 
+        <!-- ۳. دسته‌بندی و شهر -->
         <HBox spacing="15.0" alignment="TOP_RIGHT">
             <children>
                 <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
@@ -61,6 +64,7 @@
             </children>
         </HBox>
 
+        <!-- ۴. توضیحات آگهی -->
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
                 <Label text="توضیحات آگهی" textFill="#b9a6df">
@@ -70,6 +74,32 @@
             </children>
         </VBox>
 
+        <!-- 📸 ۵. بخش جدید: انتخاب تصویر آگهی (کاملاً هماهنگ با استایل پروژه شما) -->
+        <VBox alignment="TOP_RIGHT" spacing="6.0">
+            <children>
+                <Label text="تصویر آگهی (اختیاری)" textFill="#b9a6df">
+                    <font><Font size="13.0" /></font>
+                </Label>
+                <HBox spacing="15.0" alignment="CENTER_RIGHT" nodeOrientation="RIGHT_TO_LEFT">
+                    <children>
+                        <!-- دکمه انتخاب عکس با رنگ متمایز بنفش ملایم و هاور دستی -->
+                        <Button mnemonicParsing="false" onAction="#onSelectImageClick" prefHeight="40.0" style="-fx-background-color: #241942; -fx-text-fill: #b9a6df; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand;" text="📸 انتخاب عکس">
+                            <font>
+                                <Font name="System Bold" size="13.0" />
+                            </font>
+                        </Button>
+                        <!-- لیبل نمایش نام فایل با رنگ خاکستری-بنفش پروژکت -->
+                        <Label fx:id="imagePathLabel" text="هیچ عکسی انتخاب نشده است." textFill="#8b7ca6">
+                            <font>
+                                <Font size="13.0" />
+                            </font>
+                        </Label>
+                    </children>
+                </HBox>
+            </children>
+        </VBox>
+
+        <!-- ۶. دکمه‌های عملیات اصلی (انصراف و انتشار) -->
         <VBox alignment="CENTER" spacing="10.0">
             <children>
                 <HBox alignment="CENTER" spacing="15.0" maxWidth="1.7976931348623157E308">

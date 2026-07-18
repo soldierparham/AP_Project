@@ -29,7 +29,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // ۱. تنظیم کامل CORS و غیرفعال کردن CSRF برای جلوگیری از بن‌بست ارتباط با فرانت‌انند
+                // ۱. تنظیم کامل CORS و غیرفعال کردن CSRF
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
 
@@ -42,15 +42,19 @@ public class SecurityConfig {
                         .requestMatchers("/api/login", "/api/register", "/api/auth/logout").permitAll()
                         .requestMatchers("/error").permitAll()
 
+                        // 🔓 🚀 اضافه شد: آزاد کردن مسیر آپلود و پوشه دانلود تصاویر
+                        .requestMatchers("/api/upload", "/api/upload/**").permitAll() // 🔓 آزاد کردن مسیر با پیشوند api
+                        .requestMatchers("/uploads/**").permitAll()
+
                         // 🔒 بقیه اندپوینت‌ها قفل باشند و نیاز به توکن معتبر دارند
                         .anyRequest().authenticated()
                 )
 
-                // ۳. 🛠️ شاه‌کلید رفع ارور ۴۰۳: تبدیل خودکار خطای عدم دسترسی ناشناس به ارور ۴۰۱ صریح با پیام فارسی
+                // ۳. شاه‌کلید رفع ارور ۴۰۳ و تبدیل به ۴۰۱
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
-                            System.out.println("🚨 [SecurityConfig] توکن منقضی یا مفقود شده؛ هدایت کاربر با وضعیت 401.");
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // قطعاً وضعیت 401 صادر می‌شود
+                            System.out.println("🚨 [SecurityConfig] توکن منقضی یا مفقود شده؛ هدایت کاربر با وضعیت 401. مسیر درخواست: " + request.getRequestURI());
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write("{\"message\":\"نشست شما منقضی شده است. لطفاً دوباره ورود کنید.\"}");
                         })
@@ -66,7 +70,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
     // 🌐 تنظیمات سراسری CORS برای باز کردن کانال ارتباطی فرانت‌انند
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {

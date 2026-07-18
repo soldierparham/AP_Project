@@ -34,7 +34,7 @@ public class AdvertisementService {
     }
 
     /**
-     * 📥 ثبت آگهی جدید به همراه ذخیره‌سازی شهر و دسته‌بندی
+     * 📥 ثبت آگهی جدید به همراه ذخیره‌سازی شهر، دسته‌بندی و تصویر آگهی
      */
     public Advertisement saveAdvertisement(Map<String, Object> data, String username) {
         Advertisement ad = new Advertisement();
@@ -43,7 +43,7 @@ public class AdvertisementService {
         ad.setPrice(Double.valueOf(data.get("price").toString()));
         ad.setOwnerUsername(username);
 
-        // 🟢 استخراج و مقداردهی فیلدهای جدید شهر و دسته‌بندی
+        // 🟢 استخراج و مقداردهی فیلدهای شهر و دسته‌بندی
         if (data.containsKey("city")) {
             ad.setCity((String) data.get("city"));
         }
@@ -51,11 +51,20 @@ public class AdvertisementService {
             ad.setCategory((String) data.get("category"));
         }
 
+        // 🖼️ استخراج هوشمند و منعطف آدرس تصویر (پشتیبانی از هر دو فرمت ارسالی فرانت‌انند)
+        String imageUrl = null;
+        if (data.containsKey("image_url") && data.get("image_url") != null) {
+            imageUrl = (String) data.get("image_url");
+        } else if (data.containsKey("imageUrl") && data.get("imageUrl") != null) {
+            imageUrl = (String) data.get("imageUrl");
+        }
+        ad.setImageUrl(imageUrl); // 🛑 مطمئن شو نام متد Setter در مدل تو همین باشد
+
         return advertisementRepository.save(ad);
     }
 
     /**
-     * ✏️ ویرایش آگهی موجود به همراه پشتیبانی از تغییر شهر و دسته‌بندی
+     * ✏️ ویرایش آگهی موجود به همراه پشتیبانی از تغییر شهر، دسته‌بندی و تصویر آگهی
      */
     public Advertisement updateAdvertisement(Advertisement existingAd, Map<String, Object> updatedData) {
         if (updatedData.containsKey("title")) {
@@ -68,12 +77,20 @@ public class AdvertisementService {
             existingAd.setPrice(Double.valueOf(updatedData.get("price").toString()));
         }
 
-        // 🟢 بررسی و اعمال تغییرات جدید روی شهر و دسته‌بندی (در صورت ارسال از سمت کلاینت)
+        // 🟢 بررسی و اعمال تغییرات جدید روی شهر و دسته‌بندی
         if (updatedData.containsKey("city")) {
             existingAd.setCity((String) updatedData.get("city"));
         }
         if (updatedData.containsKey("category")) {
             existingAd.setCategory((String) updatedData.get("category"));
+        }
+
+        // 🖼️ بررسی و اعمال تغییرات آدرس تصویر جدید در صورت ویرایش
+        if (updatedData.containsKey("image_url") || updatedData.containsKey("imageUrl")) {
+            String imageUrl = updatedData.containsKey("image_url")
+                    ? (String) updatedData.get("image_url")
+                    : (String) updatedData.get("imageUrl");
+            existingAd.setImageUrl(imageUrl);
         }
 
         return advertisementRepository.save(existingAd);

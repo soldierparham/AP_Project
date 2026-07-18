@@ -21,6 +21,8 @@ public class Advertisement {
     // 🔑 ذخیره نام کاربری مالک آگهی برای بررسی‌های امنیتی CRUD
     private String ownerUsername;
 
+    private String imageUrl;
+
     // گترها و سترها (Getters and Setters)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -44,4 +46,12 @@ public class Advertisement {
 
     public String getOwnerUsername() { return ownerUsername; }
     public void setOwnerUsername(String ownerUsername) { this.ownerUsername = ownerUsername; }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }
