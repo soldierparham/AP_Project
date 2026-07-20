@@ -39,14 +39,20 @@ public class LoginController {
                 .thenAccept(response -> {
                     Platform.runLater(() -> {
                         if (response.statusCode() == 200) {
-                            // 🔑 استخراج توکن با متد هوشمند و جدید (مقاوم در برابر اسپیس)
+                            // 🔑 استخراج توکن با متد هوشمند
                             String token = extractTokenFromJson(response.body());
+
+                            // 👤 🟢 اصلاح شد: استخراج نام کاربری واقعی (مثل ali) از پاسخ سرور
+                            String actualUsername = extractUsernameFromJson(response.body());
 
                             // 💾 ذخیره در سشن متمرکز MainApplication
                             MainApplication.jwtToken = token;
-                            MainApplication.currentUsername = phone;
 
-                            System.out.println("✅ توکن با موفقیت در فرانت ذخیره شد: " + MainApplication.jwtToken);
+                            // اگر سرور یوزرنیم واقعی را فرستاده بود، آن را ذخیره کن؛ در غیر این صورت شماره تلفن را به عنوان پشتیبان بذار
+                            MainApplication.currentUsername = (actualUsername != null) ? actualUsername : phone;
+
+                            System.out.println("✅ توکن ذخیره شد: " + MainApplication.jwtToken);
+                            System.out.println("👤 کاربر جاری سیستم: " + MainApplication.currentUsername);
 
                             showAlert(Alert.AlertType.INFORMATION, "موفقیت", "خوش آمدید! ورود با موفقیت انجام شد.");
 
@@ -82,7 +88,6 @@ public class LoginController {
         try {
             closeWindow();
 
-            // 🌟 اصلاح تله اول: استفاده از مسیر مطلق برای پیدا کردن FXML
             FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/example/frontend/register-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
 
@@ -104,7 +109,6 @@ public class LoginController {
      */
     private void navigateToMain() {
         try {
-            // 🌟 اصلاح تله اول: استفاده از مسیر مطلق برای پیدا کردن FXML
             FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/example/frontend/hello-view.fxml"));
             Scene scene = new Scene(fxmlLoader.load());
 
@@ -114,7 +118,6 @@ public class LoginController {
             mainStage.centerOnScreen();
             mainStage.show();
 
-            // مدیریت دکمه ضربدر پنجره اصلی (ارتباط با متد لاگ‌اوت متمرکز شما)
             mainStage.setOnCloseRequest(event -> {
                 if (MainApplication.currentUsername != null) {
                     MainApplication.redirectToLogin(mainStage, "شما با موفقیت از حساب خود خارج شدید.");
@@ -135,7 +138,7 @@ public class LoginController {
     }
 
     /**
-     * 🧠 متد هوشمند استخراج پیام (بدون حساسیت به فاصله و اسپیس‌های تعمدی JSON)
+     * 🧠 متد هوشمند استخراج پیام
      */
     private String extractMessageFromJson(String jsonBody) {
         try {
@@ -153,7 +156,7 @@ public class LoginController {
     }
 
     /**
-     * 🔑 متد هوشمند استخراج توکن (تضمین حل تله دوم و نادیده گرفتن فضاهای خالی)
+     * 🔑 متد هوشمند استخراج توکن
      */
     private String extractTokenFromJson(String jsonBody) {
         try {
@@ -166,6 +169,24 @@ public class LoginController {
             }
         } catch (Exception e) {
             System.out.println("❌ خطا در استخراج توکن ساختاریافته");
+        }
+        return null;
+    }
+
+    /**
+     * 👤 🟢 اضافه شد: متد هوشمند استخراج نام‌کاربری واقعی از جی‌سون ورودی
+     */
+    private String extractUsernameFromJson(String jsonBody) {
+        try {
+            if (jsonBody != null && jsonBody.contains("\"username\"")) {
+                int keyIndex = jsonBody.indexOf("\"username\"");
+                int colonIndex = jsonBody.indexOf(":", keyIndex);
+                int quoteStart = jsonBody.indexOf("\"", colonIndex);
+                int quoteEnd = jsonBody.indexOf("\"", quoteStart + 1);
+                return jsonBody.substring(quoteStart + 1, quoteEnd);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ خطا در استخراج نام کاربری واقعی از ساختار JSON");
         }
         return null;
     }

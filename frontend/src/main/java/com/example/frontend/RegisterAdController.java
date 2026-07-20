@@ -1,16 +1,36 @@
 package com.example.frontend;
 
 import javafx.application.Platform;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
+/**
+ * 📝 کنترلر ثبت آگهی — نسخه تکمیل‌شده:
+ * 🖼️ پشتیبانی از انتخاب و آپلود چند عکس به صورت همزمان (گالری تصاویر — بخش امتیازی سند پروژه)
+ * آدرس عکس‌ها با کاما از هم جدا ذخیره می‌شوند (مثل /uploads/a.jpg,/uploads/b.jpg)
+ */
 public class RegisterAdController {
 
     @FXML
@@ -22,30 +42,118 @@ public class RegisterAdController {
     @FXML
     private TextArea descriptionInput;
 
-    // 🌟 ارجاع به کنترلر اصلی برای مدیریت جابجایی صفحات
-    private HelloController helloController;
+    @FXML
+    private ComboBox<String> cityInput;
 
+    @FXML
+    private ComboBox<String> categoryInput;
+
+    // 🖼️ FlowPane نمایش thumbnail عکس‌های انتخاب‌شده
+    @FXML
+    private FlowPane imageThumbsPane;
+
+    // 🖼️ لیست عکس‌های انتخاب‌شده (به جای تک‌فایل قبلی)
+    private final List<File> selectedImageFiles = new ArrayList<>();
+
+    private HelloController helloController;
     private final HttpClient client = HttpClient.newHttpClient();
 
-    /**
-     * 🔄 متد Setter برای تزریق کنترلر اصلی از طرف HelloController
-     */
+    @FXML
+    public void initialize() {
+        cityInput.getItems().addAll(
+                "تهران", "مشهد", "اصفهان", "شیراز", "تبریز",
+                "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت"
+        );
+
+        categoryInput.getItems().addAll(
+                "کالای دیجیتال", "وسایل نقلیه", "املاک",
+                "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات"
+        );
+
+        // thumbnails از onSelectImageClick بارگذاری می‌شوند
+    }
+
     public void setHelloController(HelloController helloController) {
         this.helloController = helloController;
     }
 
     /**
-     * 🚀 تأیید و ارسال آگهی به سرور
+     * 📸 ۱. باز کردن پنجره انتخاب چند فایل برای عکس‌های آگهی
+     * (با Ctrl یا Shift می‌توانید چند عکس را همزمان انتخاب کنید)
+     */
+    @FXML
+    private void onSelectImageClick() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("افزودن عکس (چندانتخابی با Ctrl)");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("تصاویر", "*.png", "*.jpg", "*.jpeg"));
+
+        Stage stage = (Stage) titleInput.getScene().getWindow();
+        List<File> files = fileChooser.showOpenMultipleDialog(stage);
+
+        if (files != null && !files.isEmpty()) {
+            selectedImageFiles.addAll(files); // add = تجمیعی است (مثل ویرایش)
+            renderImageThumbs();
+        }
+    }
+
+    /** 🖼️ نمایش thumbnail هر عکس انتخاب‌شده با دکمه حذف */
+    private void renderImageThumbs() {
+        if (imageThumbsPane == null) return;
+        imageThumbsPane.getChildren().clear();
+        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';";
+        String btnStyle = "-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
+        for (int i = 0; i < selectedImageFiles.size(); i++) {
+            final int idx = i;
+            File file = selectedImageFiles.get(i);
+            try {
+                Image img = new Image(file.toURI().toString(), 120, 90, true, true, false);
+                ImageView iv = new ImageView(img);
+                iv.setFitWidth(120);
+                iv.setFitHeight(90);
+                iv.setPreserveRatio(false);
+                iv.setStyle("-fx-effect: dropshadow(gaussian,rgba(0,0,0,0.4),4,0,0,2);");
+
+                Label lbl = new Label(file.getName().length() > 14 ? file.getName().substring(0,14)+"..." : file.getName());
+                lbl.setStyle(labelStyle);
+
+                Button btnDel = new Button("✖ حذف");
+                btnDel.setStyle(btnStyle);
+                btnDel.setOnAction(e -> {
+                    selectedImageFiles.remove(idx < selectedImageFiles.size() ? idx : selectedImageFiles.size()-1);
+                    renderImageThumbs();
+                });
+
+                VBox box = new VBox(5, iv, lbl, btnDel);
+                box.setAlignment(Pos.CENTER);
+                box.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
+                imageThumbsPane.getChildren().add(box);
+            } catch (Exception ignored) {}
+        }
+        if (selectedImageFiles.isEmpty()) {
+            Label lbl = new Label("🖼️ هیچ عکسی انتخاب نشده");
+            lbl.setStyle("-fx-text-fill: #8b7ca6; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+            imageThumbsPane.getChildren().add(lbl);
+        }
+    }
+
+    /**
+     * 🚀 ۲. تأیید و ارسال اطلاعات به همراه عکس‌ها به سرور
      */
     @FXML
     private void onSubmitAdClick() {
         String title = titleInput.getText().trim();
         String priceText = priceInput.getText().trim();
         String description = descriptionInput.getText().trim();
+        String selectedCity = cityInput.getValue();
+        String selectedCategory = categoryInput.getValue();
 
-        // ۱. اعتبارسنجی فیلدها
-        if (title.isEmpty() || priceText.isEmpty() || description.isEmpty()) {
-            showAlert(Alert.AlertType.ERROR, "خطای ورودی", "لطفاً تمامی فیلدها را تکمیل کنید.");
+        // 🚨 لاگ وضعیت برای خطایابی سریع
+        System.out.println("====== 🔍 تست وضعیت دکمه ثبت ======");
+        System.out.println("📸 تعداد عکس‌های انتخابی: " + selectedImageFiles.size());
+
+        // اعتبارسنجی اولیه فرم
+        if (title.isEmpty() || priceText.isEmpty() || description.isEmpty() || selectedCity == null || selectedCategory == null) {
+            showAlert(Alert.AlertType.ERROR, "خطای ورودی", "لطفاً تمامی فیلدها از جمله شهر و دسته‌بندی را تکمیل کنید.");
             return;
         }
 
@@ -56,18 +164,103 @@ public class RegisterAdController {
             return;
         }
 
-        // 🛡️ اصلاح کلیدی: ایمن‌سازی متون ورودی برای جلوگیری از خراب شدن ساختار JSON
+        // 🔄 آپلود چند عکس به صورت همزمان در یک درخواست
+        List<File> validFiles = new ArrayList<>();
+        for (File f : selectedImageFiles) {
+            if (f != null && f.exists()) validFiles.add(f);
+        }
+
+        if (!validFiles.isEmpty()) {
+            System.out.println("🚀 [OK] " + validFiles.size() + " فایل پیدا شد. شروع فرآیند آپلود ناهمگام...");
+
+            uploadImagesAsync(validFiles)
+                    .thenAccept(imageUrl -> {
+                        System.out.println("💾 [SUCCESS] دریافت آدرس(ها) از سرور: " + imageUrl);
+                        submitAdvertisement(title, priceText, description, selectedCity, selectedCategory, imageUrl);
+                    })
+                    .exceptionally(ex -> {
+                        Platform.runLater(() -> {
+                            Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                            System.err.println("❌ خطا در جریان آپلود: " + cause.getMessage());
+                            showAlert(Alert.AlertType.ERROR, "خطای آپلود تصویر",
+                                    "آپلود عکس(ها) با خطا مواجه شد.\nجزئیات: " + cause.getMessage());
+                        });
+                        return null;
+                    });
+        } else {
+            System.out.println("⚠️ [WARNING] هیچ عکسی انتخاب نشده یا فایل‌ها موجود نیستند. ارسال بدون عکس...");
+            submitAdvertisement(title, priceText, description, selectedCity, selectedCategory, null);
+        }
+    }
+
+    /**
+     * 📡 ۳. ارسال ناهمگام چند فایل تصویر در یک درخواست Multipart
+     * (هر فایل با کلید "files" ارسال می‌شود — بک‌اند هر دو کلید file و files را می‌پذیرد)
+     */
+    private CompletableFuture<String> uploadImagesAsync(List<File> files) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        try {
+            String boundary = "JavaFX-Boundary-" + UUID.randomUUID();
+            byte[] multipartBody = createMultipartBody(files, boundary);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(HelloController.BASE_URL + "/upload"))
+                    .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(multipartBody))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> {
+                        String responseBody = response.body();
+                        System.out.println("📥 [DEBUG] پاسخ خام سرور بعد از آپلود عکس: " + responseBody);
+
+                        if (response.statusCode() == 200 || response.statusCode() == 201) {
+                            String imageUrl = extractImageUrlFromJson(responseBody);
+                            if (imageUrl != null && !imageUrl.isEmpty()) {
+                                System.out.println("✅ [DEBUG] آپلود عکس(ها) موفقیت‌آمیز بود. مسیر(ها): " + imageUrl);
+                                future.complete(imageUrl);
+                            } else {
+                                future.completeExceptionally(new RuntimeException("آدرس تصویر در پاسخ JSON یافت نشد. پاسخ: " + responseBody));
+                            }
+                        } else {
+                            future.completeExceptionally(new RuntimeException("کد وضعیت سرور: " + response.statusCode() + " - پاسخ: " + responseBody));
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        future.completeExceptionally(ex);
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    /**
+     * 📝 ۴. ثبت نهایی آگهی در دیتابیس به همراه آدرس عکس(ها)ی دریافت شده
+     */
+    private void submitAdvertisement(String title, String priceText, String description, String city, String category, String imageUrl) {
         String safeTitle = escapeJson(title);
         String safeDescription = escapeJson(description);
+        String safeCity = escapeJson(city);
+        String safeCategory = escapeJson(category);
+        String safeImageUrl = imageUrl != null ? escapeJson(imageUrl) : "";
 
-        // ۲. ساخت بدنه پکت داده JSON به صورت کاملاً امن
+        // ✨ ارسال همزمان image_url و imageUrl تا اسپرینگ جفتش را بررسی کند
         String jsonBody = "{"
                 + "\"title\": \"" + safeTitle + "\","
                 + "\"description\": \"" + safeDescription + "\","
-                + "\"price\": " + priceText
+                + "\"price\": " + priceText + ","
+                + "\"city\": \"" + safeCity + "\","
+                + "\"category\": \"" + safeCategory + "\","
+                + "\"image_url\": \"" + safeImageUrl + "\","
+                + "\"imageUrl\": \"" + safeImageUrl + "\""
                 + "}";
 
-        // ۳. ارسال درخواست به بک‌انند با توکن فعال
+        System.out.println("📤 [DEBUG] در حال ارسال JSON ثبت آگهی به بک‌اند: " + jsonBody);
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(HelloController.BASE_URL + "/api/advertisements"))
                 .header("Authorization", "Bearer " + MainApplication.jwtToken)
@@ -77,24 +270,19 @@ public class RegisterAdController {
 
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    // تمدید توکن در صورت وجود هدر جدید
+                    System.out.println("📥 [DEBUG] پاسخ سرور پس از ثبت نهایی آگهی: Status=" + response.statusCode());
+
                     response.headers().firstValue("Authorization").ifPresent(authHeader -> {
                         if (authHeader.startsWith("Bearer ")) {
                             MainApplication.jwtToken = authHeader.substring(7);
-                            System.out.println("🔄 توکن فرانت‌انند پس از ثبت موفق آگهی تمدید شد.");
+                            System.out.println("🔄 توکن فرانت‌اند پس از ثبت موفق آگهی تمدید شد.");
                         }
                     });
 
                     Platform.runLater(() -> {
-                        if (response.statusCode() == 200) {
-                            showAlert(Alert.AlertType.INFORMATION, "موفقیت", "آگهی شما با موفقیت ثبت شد!");
-
-                            // 🧹 پاک‌سازی فیلدهای فرم
-                            titleInput.clear();
-                            priceInput.clear();
-                            descriptionInput.clear();
-
-                            // هدایت خودکار و آنی کاربر به صفحه اصلی
+                        if (response.statusCode() == 200 || response.statusCode() == 201) {
+                            showAlert(Alert.AlertType.INFORMATION, "موفقیت", "آگهی شما با موفقیت ثبت شد و پس از تأیید مدیر نمایش داده می‌شود!");
+                            clearFormFields();
                             if (helloController != null) {
                                 helloController.showHomeScreen();
                             }
@@ -110,31 +298,88 @@ public class RegisterAdController {
     }
 
     /**
-     * ❌ انصراف از ثبت آگهی و بازگشت آنی به صفحه اصلی (لیست آگهی‌ها)
+     * ⚙️ ۵. ساخت پکت Multipart/Form-Data برای چند فایل به صورت بایتی
      */
+    private byte[] createMultipartBody(List<File> files, String boundary) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        for (File file : files) {
+            String fileName = file.getName();
+            String mimeType = "image/jpeg";
+            try {
+                mimeType = Files.probeContentType(file.toPath());
+                if (mimeType == null) mimeType = "image/jpeg";
+            } catch (Exception e) {
+                // پیش‌فرض jpeg
+            }
+
+            String header = "--" + boundary + "\r\n"
+                    + "Content-Disposition: form-data; name=\"files\"; filename=\"" + fileName + "\"\r\n"
+                    + "Content-Type: " + mimeType + "\r\n\r\n";
+
+            out.write(header.getBytes(StandardCharsets.UTF_8));
+            out.write(Files.readAllBytes(file.toPath()));
+            out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+
+        out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        return out.toByteArray();
+    }
+
+    /**
+     * 🔍 ۶. استخراج آدرس تصویر(ها) از پاسخ JSON سرور
+     */
+    private String extractImageUrlFromJson(String json) {
+        if (json == null || json.trim().isEmpty()) return null;
+
+        if (!json.contains("{") && json.contains("/")) {
+            return json.trim();
+        }
+
+        String[] keys = {"\"image_url\"", "\"imageUrl\"", "\"image-url\"", "\"url\"", "\"fileUrl\"", "\"path\""};
+        for (String key : keys) {
+            int index = json.indexOf(key);
+            if (index != -1) {
+                int colonIndex = json.indexOf(":", index);
+                if (colonIndex != -1) {
+                    int startQuote = json.indexOf("\"", colonIndex + 1);
+                    if (startQuote != -1) {
+                        int endQuote = json.indexOf("\"", startQuote + 1);
+                        if (endQuote != -1) {
+                            return json.substring(startQuote + 1, endQuote);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     @FXML
     private void onCancelClick() {
-        // 🧹 پاک‌سازی فیلدهای فرم برای مراجعات بعدی
-        titleInput.clear();
-        priceInput.clear();
-        descriptionInput.clear();
-
-        // 🚀 بازگشت به لایوت قبلی بدون هیچ تعاملی با سرور
+        clearFormFields();
         if (helloController != null) {
             helloController.showHomeScreen();
             System.out.println("❌ کاربر از ثبت آگهی منصرف شد.");
         }
     }
 
-    /**
-     * 🧼 متد کمکی برای خنثی‌سازی کاراکترهای مخرب در فرآیند ساخت دستی JSON
-     */
+    private void clearFormFields() {
+        titleInput.clear();
+        priceInput.clear();
+        descriptionInput.clear();
+        cityInput.getSelectionModel().clearSelection();
+        categoryInput.getSelectionModel().clearSelection();
+        selectedImageFiles.clear();
+        renderImageThumbs();
+    }
+
     private String escapeJson(String input) {
         if (input == null) return "";
-        return input.replace("\\", "\\\\")   // خنثی کردن بک‌اسلش
-                .replace("\"", "\\\"")   // خنثی کردن گیومه
-                .replace("\n", "\\n")    // تبدیل اینتر به کاراکتر مجاز n\
-                .replace("\r", "");      // حذف کاراکترهای بازگشت هدر
+        return input.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "");
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {
@@ -142,7 +387,6 @@ public class RegisterAdController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
-        // استفاده از showAndWait پایداری بهتری در انتقال فوکوس ایجاد می‌کند
         alert.showAndWait();
     }
 }
