@@ -1,12 +1,31 @@
 package com.example.backend.dto;
 
 public class MessageRequest {
-    private String receiverUsername;
+    private Long conversationId;
     private String content;
 
-    // Getters and Setters
-    public String getReceiverUsername() { return receiverUsername; }
-    public void setReceiverUsername(String receiverUsername) { this.receiverUsername = receiverUsername; }
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
+    // سازنده‌ها
+    public MessageRequest() {}
+
+    public MessageRequest(Long conversationId, String content) {
+        this.conversationId = conversationId;
+        this.content = content;
+    }
+
+    // گترها و سترها
+    public Long getConversationId() {
+        return conversationId;
+    }
+
+    public void setConversationId(Long conversationId) {
+        this.conversationId = conversationId;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
 }

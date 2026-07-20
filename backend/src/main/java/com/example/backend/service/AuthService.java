@@ -6,8 +6,9 @@ import com.example.backend.dto.RegisterRequest;
 import com.example.backend.model.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtUtil;
-import io.jsonwebtoken.ExpiredJwtException; // 🌟 ایمپورت جدید برای شکار خطای انقضا
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,10 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
 
+    // 🔐 جدید: هش کردن رمز عبور با BCrypt (مطابق بخش امنیت سند پروژه)
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     public boolean isUsernameExists(String username) {
         return userRepository.existsByUsername(username);
     }
@@ -31,7 +36,7 @@ public class AuthService {
     }
 
     /**
-     * ثبت‌نام کاربر جدید همراه با اعتبارسنجی بیزینس دیتابیس
+     * ثبت‌نام کاربر جدید همراه با اعتبارسنجی + هش شدن رمز عبور
      */
     @Transactional
     public void registerNewUser(RegisterRequest dto) {
@@ -48,14 +53,18 @@ public class AuthService {
         user.setUsername(dto.getUsername());
         user.setPhoneNumber(dto.getPhoneNumber());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword());
+        // 🔐 ذخیره رمز به صورت هش‌شده (دیگر رمز خام در دیتابیس ذخیره نمی‌شود)
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setRole("USER");
+        user.setStatus("ACTIVE");
 
         userRepository.saveAndFlush(user);
     }
 
     /**
      * 🔐 مدیریت منطق ورود (لاگین) و صدور توکن JWT
+     * - کاربران مسدودشده (BLOCKED) اجازه ورود ندارند
+     * - پشتیبانی از رمزهای قدیمی متنی (مهاجرت خودکار به BCrypt در اولین ورود موفق)
      */
     @Transactional
     public AuthResponse login(LoginRequest dto) {
@@ -64,7 +73,16 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
 
-            if (user.getPassword().equals(dto.getPassword())) {
+            if ("BLOCKED".equalsIgnoreCase(user.getStatus())) {
+                throw new IllegalArgumentException("حساب کاربری شما توسط مدیر سیستم مسدود شده است.");
+            }
+
+            if (matchesPassword(dto.getPassword(), user.getPassword())) {
+                // 🔄 مهاجرت رمزهای متنی قدیمی به هش BCrypt
+                if (!isBcryptHash(user.getPassword())) {
+                    user.setPassword(passwordEncoder.encode(dto.getPassword()));
+                }
+
                 String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
 
                 user.setJwtToken(token);
@@ -75,6 +93,21 @@ public class AuthService {
         }
 
         throw new IllegalArgumentException("شماره تماس یا رمز عبور اشتباه است.");
+    }
+
+    private boolean isBcryptHash(String stored) {
+        return stored != null && (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$"));
+    }
+
+    private boolean matchesPassword(String rawPassword, String storedPassword) {
+        if (storedPassword == null || rawPassword == null) {
+            return false;
+        }
+        if (isBcryptHash(storedPassword)) {
+            return passwordEncoder.matches(rawPassword, storedPassword);
+        }
+        // سازگاری با حساب‌های قدیمی که رمزشان متنی ذخیره شده بود
+        return storedPassword.equals(rawPassword);
     }
 
     /**
@@ -107,23 +140,19 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
 
-            // بررسی تطابق توکن فرانت با توکن فعال دیتابیس
             if (user.getJwtToken() == null || !user.getJwtToken().equals(incomingToken)) {
                 return false;
             }
 
             try {
-                // اعتبارسنجی زمانی توکن از طریق کامپوننت JwtUtil
                 boolean isValid = jwtUtil.validateToken(incomingToken, user.getUsername());
                 return isValid;
             } catch (ExpiredJwtException e) {
-                // 🌟 اصلاح اصلی اینجاست: اگر در زمان چک کردن سشن هم توکن اکسپایر شده باشد، بلافاصله نال می‌شود
                 user.setJwtToken(null);
                 userRepository.saveAndFlush(user);
                 System.out.println("🧹 [CheckSession] توکن منقضی شده کاربر " + user.getUsername() + " در دیتابیس null شد.");
                 return false;
             } catch (Exception e) {
-                // مدیریت سایر خطاهای ساختاری یا فیک بودن توکن
                 return false;
             }
         }
@@ -131,7 +160,7 @@ public class AuthService {
     }
 
     /**
-     * 🔒 خروج از حساب (پاک کردن توکن دیتابیس به صورت دستی)
+     * 🔒 خروج از حساب (پاک کردن توکن دیتابیس)
      */
     @Transactional
     public void logout(String identifier) {

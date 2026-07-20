@@ -28,7 +28,9 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        return path.equals("/api/login") || path.equals("/api/register") || path.equals("/api/auth/logout");
+        // ❤️ /api/health به مسیرهای بدون فیلتر اضافه شد
+        return path.equals("/api/login") || path.equals("/api/register")
+                || path.equals("/api/auth/logout") || path.equals("/api/health");
     }
 
     @Override
@@ -51,8 +53,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     String expiredUsername = e.getClaims().getSubject();
                     if (expiredUsername != null) {
                         userRepository.findByUsername(expiredUsername).ifPresent(user -> {
-                            user.setToken(null); // نال کردن توکن
-                            userRepository.saveAndFlush(user); // اعمال آنی
+                            user.setToken(null);
+                            userRepository.saveAndFlush(user);
                             System.out.println("🔒 توکن منقضی شده کاربر " + expiredUsername + " با موفقیت در دیتابیس null شد.");
                         });
                     }
@@ -60,7 +62,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     System.out.println("❌ خطای موقت دیتابیس در فیلتر: " + dbException.getMessage());
                 }
 
-                // 🚨 گام دوم: ارسال پاسخ 401 همراه با هدرهای CORS برای جلوگیر از ارور 403 مرورگر
+                // 🚨 گام دوم: ارسال پاسخ 401 همراه با هدرهای CORS
                 sendCustomUnauthorizedResponse(response, "نشست شما منقضی شده است. لطفاً دوباره ورود کنید.");
                 return;
 
@@ -76,6 +78,13 @@ public class JwtFilter extends OncePerRequestFilter {
             var userOpt = userRepository.findByUsername(username);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
+
+                // 🚫 جدید: کاربران مسدودشده اجازه دسترسی ندارند
+                if ("BLOCKED".equalsIgnoreCase(user.getStatus())) {
+                    sendCustomUnauthorizedResponse(response, "حساب کاربری شما توسط مدیر سیستم مسدود شده است.");
+                    return;
+                }
+
                 // شرط همخوانی توکن فرانت با دیتابیس و عدم انقضا
                 if (token.equals(user.getToken()) && !jwtUtil.isTokenExpired(token)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -91,13 +100,12 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 🌐 متد کمکی برای تزریق دستی هدرهای CORS و ارسال پاسخ 401 تمیز به فرانت‌انند
+     * 🌐 متد کمکی برای تزریق دستی هدرهای CORS و ارسال پاسخ 401 تمیز
      */
     private void sendCustomUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
 
-        // 🛡️ تزریق هدرهای CORS به پاسخ‌های دستی فیلتر تا مرورگر آن را بلاک (403) نکند
         response.setHeader("Access-Control-Allow-Origin", "*");
         response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Cache-Control");
