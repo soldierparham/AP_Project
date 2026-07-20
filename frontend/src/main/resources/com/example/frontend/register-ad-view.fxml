@@ -2,75 +2,94 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
 <VBox alignment="TOP_RIGHT" spacing="20.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterAdController">
     <children>
-        <Label text="📝 ثبت آگهی جدید" textFill="WHITE">
-            <font>
-                <Font name="System Bold" size="20.0" />
-            </font>
-            <VBox.margin>
-                <Insets bottom="10.0" />
-            </VBox.margin>
+        <Label text="&#x1F4DD; &#x062B;&#x0628;&#x062A; &#x0622;&#x06AF;&#x0647;&#x06CC; &#x062C;&#x062F;&#x06CC;&#x062F;" textFill="WHITE">
+            <font><Font name="System Bold" size="20.0" /></font>
+            <VBox.margin><Insets bottom="10.0" /></VBox.margin>
         </Label>
 
+        <!-- 1. &#x639;&#x646;&#x648;&#x627;&#x646; -->
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
-                <Label text="عنوان آگهی" textFill="#b9a6df">
-                    <font><Font size="13.0" /></font>
-                </Label>
-                <TextField fx:id="titleInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="مثال: آیفون ۱۳ پرو مکس" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
+                <Label text="&#x639;&#x646;&#x648;&#x627;&#x646; &#x0622;&#x06AF;&#x0647;&#x06CC;" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
+                <TextField fx:id="titleInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="&#x645;&#x062B;&#x0627;&#x0644;: &#x0622;&#x06CC;&#x0641;&#x0648;&#x646; &#x66F;&#x66E; &#x062F;&#x633;&#x062A; &#x062F;&#x0648;&#x0645;" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
             </children>
         </VBox>
 
+        <!-- 2. &#x642;&#x06CC;&#x645;&#x062A; -->
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
-                <Label text="قیمت (تومان)" textFill="#b9a6df">
-                    <font><Font size="13.0" /></font>
-                </Label>
-                <TextField fx:id="priceInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="مثال: 45000000" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
+                <Label text="&#x642;&#x06CC;&#x645;&#x062A; (&#x062A;&#x0648;&#x645;&#x0627;&#x646;)" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
+                <TextField fx:id="priceInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" promptText="&#x645;&#x062B;&#x0627;&#x0644;: 45000000" style="-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" />
             </children>
         </VBox>
 
+        <!-- 3. &#x62F;&#x633;&#x062A;&#x647;&#x200C;&#x628;&#x646;&#x62F;&#x06CC; &#x648; &#x634;&#x647;&#x631; -->
+        <HBox spacing="15.0" alignment="TOP_RIGHT">
+            <children>
+                <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="&#x62F;&#x633;&#x062A;&#x647;&#x200C;&#x628;&#x646;&#x62F;&#x06CC;" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
+                        <ComboBox fx:id="categoryInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" maxWidth="1.7976931348623157E308" promptText="&#x627;&#x646;&#x062A;&#x062E;&#x0627;&#x628; &#x062F;&#x633;&#x062A;&#x647;&#x200C;&#x628;&#x646;&#x62F;&#x06CC;..." style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;" />
+                    </children>
+                </VBox>
+                <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="&#x634;&#x647;&#x631;" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
+                        <ComboBox fx:id="cityInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" maxWidth="1.7976931348623157E308" promptText="&#x627;&#x646;&#x062A;&#x062E;&#x0627;&#x628; &#x634;&#x647;&#x631;..." style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;" />
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
+
+        <!-- 4. &#x62A;&#x648;&#x636;&#x06CC;&#x62D;&#x0627;&#x62A; -->
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
-                <Label text="توضیحات آگهی" textFill="#b9a6df">
-                    <font><Font size="13.0" /></font>
-                </Label>
-                <TextArea fx:id="descriptionInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="150.0" promptText="توضیحات کامل کالا، وضعیت ظاهری و..." style="-fx-control-inner-background: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" wrapText="true" />
+                <Label text="&#x062A;&#x0648;&#x636;&#x06CC;&#x062D;&#x0627;&#x062A; &#x0622;&#x06AF;&#x0647;&#x06CC;" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
+                <TextArea fx:id="descriptionInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="150.0" promptText="&#x062A;&#x0648;&#x636;&#x06CC;&#x062D;&#x0627;&#x062A; &#x06A9;&#x0627;&#x0645;&#x0644;&#x060C; &#x0648;&#x06CC;&#x0698;&#x06AF;&#x06CC;&#x200C;&#x0647;&#x0627; &#x0648; &#x0634;&#x0631;&#x0627;&#x06CC;&#x0637; &#x0641;&#x0631;&#x0648;&#x0634;..." style="-fx-control-inner-background: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" wrapText="true" />
             </children>
         </VBox>
 
+        <!-- 5. &#x062A;&#x635;&#x0627;&#x0648;&#x06CC;&#x0631; (&#x0645;&#x062B;&#x0644; &#x0635;&#x0641;&#x062D;&#x0647; &#x0648;&#x06CC;&#x0631;&#x0627;&#x06CC;&#x0634;) -->
+        <VBox alignment="TOP_RIGHT" spacing="8.0">
+            <children>
+                <Label text="&#x062A;&#x0635;&#x0627;&#x0648;&#x06CC;&#x0631; &#x0622;&#x06AF;&#x0647;&#x06CC; (&#x0627;&#x062E;&#x062A;&#x06CC;&#x0627;&#x0631;&#x06CC;)" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
+                <!-- &#x62F;&#x6A9;&#x645;&#x647; &#x0627;&#x641;&#x632;&#x0648;&#x62F;&#x646; &#x0639;&#x06A9;&#x633; — &#x647;&#x0631;&#x628;&#x0627;&#x0631; &#x0641;&#x0627;&#x06CC;&#x0644;&#x200C;&#x0647;&#x0627;&#x06CC; &#x062C;&#x062F;&#x06CC;&#x062F; &#x0628;&#x0647; &#x0644;&#x06CC;&#x633;&#x062A; &#x0627;&#x636;&#x0627;&#x641;&#x0647; &#x0645;&#x06CC;&#x200C;&#x0634;&#x0648;&#x0646;&#x062F; -->
+                <Button mnemonicParsing="false" onAction="#onSelectImageClick" style="-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: Vazirmatn; -fx-font-size: 13px;" text="&#x1F5BC; &#x0627;&#x0641;&#x0632;&#x0648;&#x062F;&#x0646; &#x0639;&#x06A9;&#x0633; (&#x0686;&#x0646;&#x062F;&#x0627;&#x646;&#x062A;&#x062E;&#x0627;&#x0628;&#x06CC; &#x0628;&#x0627; Ctrl)">
+                    <padding><Insets bottom="8.0" left="16.0" right="16.0" top="8.0" /></padding>
+                </Button>
+                <!-- FlowPane &#x0646;&#x0645;&#x0627;&#x06CC;&#x0634; thumbnail &#x0647;&#x0631; &#x0639;&#x06A9;&#x0633; -->
+                <FlowPane fx:id="imageThumbsPane" hgap="10.0" vgap="10.0" nodeOrientation="RIGHT_TO_LEFT" style="-fx-background-color: transparent;" />
+            </children>
+        </VBox>
+
+        <!-- 6. &#x62F;&#x6A9;&#x645;&#x647;&#x200C;&#x647;&#x0627;&#x06CC; &#x0639;&#x0645;&#x0644;&#x06CC;&#x0627;&#x062A;&#x06CC; -->
         <VBox alignment="CENTER" spacing="10.0">
             <children>
                 <HBox alignment="CENTER" spacing="15.0" maxWidth="1.7976931348623157E308">
                     <children>
-                        <Button HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onCancelClick" prefHeight="45.0" style="-fx-background-color: transparent; -fx-border-color: #ff5555; -fx-border-radius: 6; -fx-text-fill: #ff5555; -fx-cursor: hand;" text="❌ انصراف و بازگشت">
-                            <font>
-                                <Font name="System Bold" size="14.0" />
-                            </font>
+                        <Button HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onCancelClick" prefHeight="45.0" style="-fx-background-color: transparent; -fx-border-color: #ff5555; -fx-border-radius: 6; -fx-text-fill: #ff5555; -fx-cursor: hand;" text="&#x274C; &#x0627;&#x0646;&#x0635;&#x0631;&#x0627;&#x0641; &#x0648; &#x0628;&#x0627;&#x0632;&#x06AF;&#x0634;&#x062A;">
+                            <font><Font name="System Bold" size="14.0" /></font>
                         </Button>
-
-                        <Button HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSubmitAdClick" prefHeight="45.0" style="-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" text="✨ انتشار آگهی">
-                            <font>
-                                <Font name="System Bold" size="14.0" />
-                            </font>
+                        <Button HBox.hgrow="ALWAYS" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onSubmitAdClick" prefHeight="45.0" style="-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" text="&#x2714; &#x0627;&#x0646;&#x062A;&#x0634;&#x0627;&#x0631; &#x0622;&#x06AF;&#x0647;&#x06CC;">
+                            <font><Font name="System Bold" size="14.0" /></font>
                         </Button>
                     </children>
                 </HBox>
             </children>
-            <VBox.margin>
-                <Insets top="15.0" />
-            </VBox.margin>
+            <VBox.margin><Insets top="15.0" /></VBox.margin>
         </VBox>
+
     </children>
-    <padding>
-        <Insets bottom="30.0" left="150.0" right="150.0" top="30.0" />
-    </padding>
+    <padding><Insets bottom="30.0" left="150.0" right="150.0" top="30.0" /></padding>
 </VBox>
