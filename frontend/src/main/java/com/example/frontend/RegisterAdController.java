@@ -48,6 +48,13 @@ public class RegisterAdController {
     @FXML
     private ComboBox<String> categoryInput;
 
+    // کمبوی زیردسته (فقط وقتی دسته اصلی انتخابی، زیردسته داشته باشد نمایش داده می‌شود)
+    @FXML
+    private ComboBox<String> subCategoryInput;
+
+    // نگاشت دسته اصلی ← زیردسته‌ها
+    private final java.util.Map<String, java.util.List<String>> subcategoriesOf = new java.util.LinkedHashMap<>();
+
     // 🖼️ FlowPane نمایش thumbnail عکس‌های انتخاب‌شده
     @FXML
     private FlowPane imageThumbsPane;
@@ -73,6 +80,11 @@ public class RegisterAdController {
         // 🎨 هماهنگ‌سازی رنگ کمبوباکس‌ها با تم برنامه
         HelloController.styleComboBox(cityInput);
         HelloController.styleComboBox(categoryInput);
+        if (subCategoryInput != null) {
+            HelloController.styleComboBox(subCategoryInput);
+            // با تغییر دسته اصلی، لیست زیردسته‌ها به‌روز می‌شود
+            categoryInput.valueProperty().addListener((obs, oldV, newV) -> refreshSubCategoryCombo(newV));
+        }
 
         // 🗂️ دریافت دسته‌بندی‌های به‌روز از سرور (شامل دسته‌های ادمین)
         loadCategoriesFromServer();
@@ -83,7 +95,7 @@ public class RegisterAdController {
         // thumbnails از onSelectImageClick بارگذاری می‌شوند
     }
 
-    // 🗂 دریافت لیست دسته‌بندی‌ها از سرور تا دسته‌های جدید ادمین هم قابل انتخاب باشند
+    // 🗂 دریافت دسته‌بندی‌ها از سرور: فقط دسته‌های اصلی در لیست اول؛ زیردسته‌ها در لیست دوم
     private void loadCategoriesFromServer() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(HelloController.BASE_URL + "/api/categories"))
@@ -94,18 +106,58 @@ public class RegisterAdController {
         client.sendAsync(request, java.net.http.HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
                     if (response.statusCode() != 200) return;
+                    // تجزیه هر دسته همراه با شناسه و والد
+                    java.util.List<Long> ids = new java.util.ArrayList<>();
                     java.util.List<String> names = new java.util.ArrayList<>();
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
-                            .matcher(response.body());
-                    while (m.find()) {
-                        String n = m.group(1).trim();
-                        if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                    java.util.List<Long> parents = new java.util.ArrayList<>();
+                    java.util.regex.Matcher obj = java.util.regex.Pattern.compile("\\{[^{}]*\\}").matcher(response.body());
+                    while (obj.find()) {
+                        String o = obj.group();
+                        java.util.regex.Matcher mId = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*(\\d+)").matcher(o);
+                        java.util.regex.Matcher mName = java.util.regex.Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"").matcher(o);
+                        java.util.regex.Matcher mParent = java.util.regex.Pattern.compile("\"parentId\"\\s*:\\s*(\\d+)").matcher(o);
+                        if (!mId.find() || !mName.find()) continue;
+                        ids.add(Long.parseLong(mId.group(1)));
+                        names.add(mName.group(1).trim());
+                        parents.add(mParent.find() ? Long.parseLong(mParent.group(1)) : -1L);
                     }
                     if (names.isEmpty()) return;
-                    javafx.application.Platform.runLater(() ->
-                            categoryInput.getItems().setAll(names));
+                    // ساخت درخت: دسته‌های اصلی و زیردسته‌های هر کدام
+                    java.util.List<String> mains = new java.util.ArrayList<>();
+                    java.util.Map<String, java.util.List<String>> tree = new java.util.LinkedHashMap<>();
+                    for (int i = 0; i < names.size(); i++) {
+                        if (parents.get(i) >= 0 && ids.contains(parents.get(i))) continue; // زیردسته است
+                        String parentName = names.get(i);
+                        if (parentName.isEmpty() || mains.contains(parentName)) continue;
+                        mains.add(parentName);
+                        java.util.List<String> kids = new java.util.ArrayList<>();
+                        long pid = ids.get(i);
+                        for (int j = 0; j < names.size(); j++) {
+                            if (parents.get(j) == pid && !names.get(j).isEmpty() && !kids.contains(names.get(j))) {
+                                kids.add(names.get(j));
+                            }
+                        }
+                        tree.put(parentName, kids);
+                    }
+                    if (mains.isEmpty()) return;
+                    javafx.application.Platform.runLater(() -> {
+                        subcategoriesOf.clear();
+                        subcategoriesOf.putAll(tree);
+                        categoryInput.getItems().setAll(mains);
+                        refreshSubCategoryCombo(categoryInput.getValue());
+                    });
                 });
+    }
+
+    /** نمایش/مخفی‌سازی کمبوی زیردسته بر اساس دسته اصلی انتخاب‌شده */
+    private void refreshSubCategoryCombo(String mainCategory) {
+        if (subCategoryInput == null) return;
+        java.util.List<String> kids = mainCategory == null ? null : subcategoriesOf.get(mainCategory);
+        boolean has = kids != null && !kids.isEmpty();
+        subCategoryInput.getItems().setAll(has ? kids : java.util.Collections.<String>emptyList());
+        subCategoryInput.getSelectionModel().clearSelection();
+        subCategoryInput.setVisible(has);
+        subCategoryInput.setManaged(has);
     }
 
     // دریافت لیست شهرها از سرور تا شهرهای جدید ادمین هم قابل انتخاب باشند
@@ -205,7 +257,10 @@ public class RegisterAdController {
         String priceText = priceInput.getText().trim();
         String description = descriptionInput.getText().trim();
         String selectedCity = cityInput.getValue();
-        String selectedCategory = categoryInput.getValue();
+        String mainCategory = categoryInput.getValue();
+        // اگر زیردسته انتخاب شده باشد، همان به عنوان دسته آگهی ثبت می‌شود
+        String selectedCategory = (subCategoryInput != null && subCategoryInput.isVisible() && subCategoryInput.getValue() != null)
+                ? subCategoryInput.getValue() : mainCategory;
 
         // 🚨 لاگ وضعیت برای خطایابی سریع
         System.out.println("====== 🔍 تست وضعیت دکمه ثبت ======");
@@ -430,6 +485,11 @@ public class RegisterAdController {
         descriptionInput.clear();
         cityInput.getSelectionModel().clearSelection();
         categoryInput.getSelectionModel().clearSelection();
+        if (subCategoryInput != null) {
+            subCategoryInput.getSelectionModel().clearSelection();
+            subCategoryInput.setVisible(false);
+            subCategoryInput.setManaged(false);
+        }
         selectedImageFiles.clear();
         renderImageThumbs();
     }

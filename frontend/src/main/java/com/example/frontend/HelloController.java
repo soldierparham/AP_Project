@@ -79,8 +79,14 @@ public class HelloController {
     // 🔍 فیلترهای ترکیبی (امتیازی)
     private String filterCategory = "";
 
+    // دسته‌های اصلی بازشده در ستون دسته‌بندی (حفظ وضعیت بین بازسازی‌ها)
+    private final java.util.Set<String> expandedCategories = new java.util.HashSet<>();
+
     // 🗂️ دسته‌بندی‌های دریافت‌شده از سرور
     private final java.util.List<String> serverCategories = new java.util.ArrayList<>();
+
+    // نگاشت دسته اصلی ← زیردسته‌ها (برای فرم ویرایش آگهی)
+    private final java.util.Map<String, java.util.List<String>> serverCategoryTree = new java.util.LinkedHashMap<>();
 
     // شهرهای دریافتی از سرور (قابل مدیریت توسط ادمین)
     private final java.util.List<String> serverCities = new java.util.ArrayList<>(java.util.List.of(
@@ -263,54 +269,102 @@ public class HelloController {
                         catParents.add(mp.find() ? Long.parseLong(mp.group(1)) : -1L);
                     }
 
-                    // ترتیب نمایش: هر دسته اصلی و بلافاصله زیردسته‌های آن
+                    // ترتیب نمایش: هر دسته اصلی و زیردسته‌های آن (ساختار درختی)
                     java.util.List<String> names = new java.util.ArrayList<>();
-                    java.util.Set<String> childCats = new java.util.HashSet<>();
+                    java.util.Map<String, java.util.List<String>> catTree = new java.util.LinkedHashMap<>();
                     for (int i = 0; i < catNames.size(); i++) {
                         if (catParents.get(i) >= 0 && catIds.contains(catParents.get(i))) continue;
                         String parentName = catNames.get(i);
                         if (parentName.isEmpty() || names.contains(parentName)) continue;
                         names.add(parentName);
+                        java.util.List<String> kids = new java.util.ArrayList<>();
                         long pid = catIds.get(i);
                         for (int j = 0; j < catNames.size(); j++) {
                             String childName = catNames.get(j);
                             if (catParents.get(j) == pid && !childName.isEmpty() && !names.contains(childName)) {
                                 names.add(childName);
-                                childCats.add(childName);
+                                kids.add(childName);
                             }
                         }
+                        catTree.put(parentName, kids);
                     }
                     if (names.isEmpty()) return;
 
                     Platform.runLater(() -> {
                         serverCategories.clear();
                         serverCategories.addAll(names);
+                        serverCategoryTree.clear();
+                        serverCategoryTree.putAll(catTree);
                         if (categoryVBox == null) return;
 
-                        // حذف دکمه‌های قبلی به‌جز «همه محصولات»
+                        // حذف آیتم‌های قبلی به‌جز «همه محصولات»
                         categoryVBox.getChildren().removeIf(node ->
-                                node instanceof Button && !"همه محصولات".equals(((Button) node).getText()));
+                                (node instanceof Button && !"همه محصولات".equals(((Button) node).getText()))
+                                        || node instanceof HBox);
 
-                        for (String name : names) {
+                        String catBtnStyle = "-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;";
+                        for (java.util.Map.Entry<String, java.util.List<String>> entry : catTree.entrySet()) {
+                            String name = entry.getKey();
                             if ("همه محصولات".equals(name)) continue;
+                            java.util.List<String> kids = entry.getValue();
+
                             Button btn = new Button(name);
                             btn.setAlignment(javafx.geometry.Pos.BASELINE_RIGHT);
                             btn.setMaxWidth(Double.MAX_VALUE);
-                            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;");
-                            // زیردسته‌ها با کمی تورفتگی از سمت راست نمایش داده می‌شوند
-                            if (childCats.contains(name)) {
-                                btn.setPadding(new javafx.geometry.Insets(2, 22, 2, 2));
-                            }
+                            btn.setStyle(catBtnStyle);
                             btn.setOnAction(this::onCategoryClick);
-                            categoryVBox.getChildren().add(btn);
+
+                            if (kids.isEmpty()) {
+                                // دسته بدون زیردسته: دکمه ساده
+                                categoryVBox.getChildren().add(btn);
+                                continue;
+                            }
+
+                            // دسته دارای زیردسته: فلش بازشو کنار نام دسته اصلی
+                            if (!filterCategory.isBlank() && kids.contains(filterCategory)) {
+                                expandedCategories.add(name); // زیردسته فعال باید دیده شود
+                            }
+                            boolean expanded = expandedCategories.contains(name);
+
+                            Label arrow = new Label(expanded ? "\u25be" : "\u25c2");
+                            arrow.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 2 6 2 6;");
+
+                            HBox parentRow = new HBox(2, arrow, btn);
+                            parentRow.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+                            HBox.setHgrow(btn, Priority.ALWAYS);
+                            categoryVBox.getChildren().add(parentRow);
+
+                            java.util.List<Button> childBtns = new java.util.ArrayList<>();
+                            for (String childName : kids) {
+                                Button childBtn = new Button(childName);
+                                childBtn.setAlignment(javafx.geometry.Pos.BASELINE_RIGHT);
+                                childBtn.setMaxWidth(Double.MAX_VALUE);
+                                childBtn.setStyle(catBtnStyle);
+                                childBtn.setPadding(new javafx.geometry.Insets(2, 22, 2, 2));
+                                childBtn.setOnAction(this::onCategoryClick);
+                                childBtn.setVisible(expanded);
+                                childBtn.setManaged(expanded);
+                                categoryVBox.getChildren().add(childBtn);
+                                childBtns.add(childBtn);
+                            }
+
+                            // کلیک روی فلش = باز/بسته کردن زیردسته‌ها
+                            arrow.setOnMouseClicked(ev -> {
+                                boolean open = !expandedCategories.contains(name);
+                                if (open) expandedCategories.add(name); else expandedCategories.remove(name);
+                                arrow.setText(open ? "\u25be" : "\u25c2");
+                                for (Button cb : childBtns) {
+                                    cb.setVisible(open);
+                                    cb.setManaged(open);
+                                }
+                            });
                         }
 
                         // حفظ هایلایت دسته فعال پس از بازسازی لیست
                         Button activeBtn = null;
-                        for (javafx.scene.Node node : categoryVBox.getChildren()) {
-                            if (node instanceof Button && !filterCategory.isBlank()
-                                    && filterCategory.equals(((Button) node).getText())) {
-                                activeBtn = (Button) node;
+                        for (Button b : getCategorySidebarButtons()) {
+                            if (!filterCategory.isBlank() && filterCategory.equals(b.getText())) {
+                                activeBtn = b;
                                 break;
                             }
                         }
@@ -329,18 +383,34 @@ public class HelloController {
         if (categoryVBox == null) return;
         String normal = "-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;";
         String active = "-fx-background-color: transparent; -fx-text-fill: #ffc83b; -fx-cursor: hand; -fx-border-color: #ffc83b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-width: 1.5;";
-        for (javafx.scene.Node node : categoryVBox.getChildren()) {
-            if (node instanceof Button) node.setStyle(normal);
+        for (Button b : getCategorySidebarButtons()) {
+            b.setStyle(normal);
         }
         if (activeBtn == null) {
-            for (javafx.scene.Node node : categoryVBox.getChildren()) {
-                if (node instanceof Button && "همه محصولات".equals(((Button) node).getText())) {
-                    activeBtn = (Button) node;
+            for (Button b : getCategorySidebarButtons()) {
+                if ("همه محصولات".equals(b.getText())) {
+                    activeBtn = b;
                     break;
                 }
             }
         }
         if (activeBtn != null) activeBtn.setStyle(active);
+    }
+
+    /** همه دکمه‌های دسته‌بندی ستون راست (شامل دکمه‌های داخل ردیف‌های فلش‌دار) */
+    private java.util.List<Button> getCategorySidebarButtons() {
+        java.util.List<Button> buttons = new java.util.ArrayList<>();
+        if (categoryVBox == null) return buttons;
+        for (javafx.scene.Node node : categoryVBox.getChildren()) {
+            if (node instanceof Button) {
+                buttons.add((Button) node);
+            } else if (node instanceof HBox) {
+                for (javafx.scene.Node inner : ((HBox) node).getChildren()) {
+                    if (inner instanceof Button) buttons.add((Button) inner);
+                }
+            }
+        }
+        return buttons;
     }
 
     /** 🙈 نمایش/مخفی‌سازی ستون دسته‌بندی‌ها (در چت، ثبت آگهی و پنل مدیریت مخفی می‌شود) */
@@ -1176,20 +1246,53 @@ public class HelloController {
         Label lblFieldCategory = new Label("دسته‌بندی:");
         lblFieldCategory.setStyle(labelStyle);
         ComboBox<String> cmbCategory = new ComboBox<>();
-        if (!serverCategories.isEmpty()) {
+        if (!serverCategoryTree.isEmpty()) {
+            cmbCategory.getItems().addAll(serverCategoryTree.keySet()); // فقط دسته‌های اصلی
+        } else if (!serverCategories.isEmpty()) {
             cmbCategory.getItems().addAll(serverCategories);
         } else {
             cmbCategory.getItems().addAll("کالای دیجیتال", "وسایل نقلیه", "املاک", "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات");
         }
-        if (category != null && !category.isBlank() && !"مشخص نشده".equals(category) && !cmbCategory.getItems().contains(category)) {
-            cmbCategory.getItems().add(category);
-        }
-        if (category != null && !"مشخص نشده".equals(category)) {
-            cmbCategory.setValue(category);
-        }
         cmbCategory.setMaxWidth(Double.MAX_VALUE);
         cmbCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
         styleComboBox(cmbCategory);
+
+        // کمبوی زیردسته: فقط وقتی دسته اصلی انتخابی زیردسته داشته باشد نمایش داده می‌شود
+        ComboBox<String> cmbSubCategory = new ComboBox<>();
+        cmbSubCategory.setPromptText("انتخاب زیردسته (اختیاری)...");
+        cmbSubCategory.setMaxWidth(Double.MAX_VALUE);
+        cmbSubCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        styleComboBox(cmbSubCategory);
+        cmbSubCategory.setVisible(false);
+        cmbSubCategory.setManaged(false);
+
+        Runnable refreshSubCombo = () -> {
+            String mainCat = cmbCategory.getValue();
+            java.util.List<String> kids = mainCat == null ? null : serverCategoryTree.get(mainCat);
+            boolean has = kids != null && !kids.isEmpty();
+            cmbSubCategory.getItems().setAll(has ? kids : java.util.Collections.<String>emptyList());
+            cmbSubCategory.getSelectionModel().clearSelection();
+            cmbSubCategory.setVisible(has);
+            cmbSubCategory.setManaged(has);
+        };
+        cmbCategory.valueProperty().addListener((obs, oldV, newV) -> refreshSubCombo.run());
+
+        // مقداردهی اولیه: اگر دسته فعلی آگهی زیردسته باشد، والد + زیردسته انتخاب می‌شود
+        if (category != null && !category.isBlank() && !"مشخص نشده".equals(category)) {
+            String parentOfCurrent = null;
+            for (java.util.Map.Entry<String, java.util.List<String>> en : serverCategoryTree.entrySet()) {
+                if (en.getValue().contains(category)) { parentOfCurrent = en.getKey(); break; }
+            }
+            if (parentOfCurrent != null) {
+                cmbCategory.setValue(parentOfCurrent);
+                cmbSubCategory.setValue(category);
+            } else {
+                if (!cmbCategory.getItems().contains(category)) {
+                    cmbCategory.getItems().add(category);
+                }
+                cmbCategory.setValue(category);
+            }
+        }
 
         // 🖼️ مدیریت تک‌به‌تک عکس‌ها: پیش‌نمایش هر عکس + دکمه حذف زیر همان عکس
         Label lblImagesTitle = new Label("عکس‌های آگهی (برای حذف هر عکس، دکمه حذف زیر همان عکس را بزنید):");
@@ -1253,7 +1356,9 @@ public class HelloController {
                 return;
             }
             String cityValue = cmbCity.getValue() == null ? "" : cmbCity.getValue();
-            String categoryValue = cmbCategory.getValue() == null ? "" : cmbCategory.getValue();
+            String mainCategoryValue = cmbCategory.getValue() == null ? "" : cmbCategory.getValue();
+            String categoryValue = (cmbSubCategory.isVisible() && cmbSubCategory.getValue() != null && !cmbSubCategory.getValue().isBlank())
+                    ? cmbSubCategory.getValue() : mainCategoryValue;
             if (!newImageFiles.isEmpty()) {
                 // اول عکس‌های جدید آپلود می‌شوند، بعد کنار عکس‌های باقی‌مانده ذخیره می‌شوند
                 uploadEditImages(newImageFiles)
@@ -1288,7 +1393,7 @@ public class HelloController {
                 lblFieldDesc, txtDesc,
                 lblFieldPrice, txtPrice,
                 lblFieldCity, cmbCity,
-                lblFieldCategory, cmbCategory,
+                lblFieldCategory, cmbCategory, cmbSubCategory,
                 lblImagesTitle, btnAddImages, thumbsPane,
                 actionRow);
 

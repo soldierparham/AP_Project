@@ -44,6 +44,7 @@
                     <children>
                         <Label text="&#x62F;&#x633;&#x062A;&#x647;&#x200C;&#x628;&#x646;&#x62F;&#x06CC;" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
                         <ComboBox fx:id="categoryInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" maxWidth="1.7976931348623157E308" promptText="&#x627;&#x646;&#x062A;&#x062E;&#x0627;&#x628; &#x062F;&#x633;&#x062A;&#x647;&#x200C;&#x628;&#x646;&#x62F;&#x06CC;..." style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;" />
+                        <ComboBox fx:id="subCategoryInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" maxWidth="1.7976931348623157E308" promptText="انتخاب زیردسته (اختیاری)..." visible="false" managed="false" style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;" />
                     </children>
                 </VBox>
                 <VBox alignment="TOP_RIGHT" spacing="6.0" HBox.hgrow="ALWAYS">
