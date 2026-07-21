@@ -284,8 +284,15 @@ public class HelloController {
         if (activeBtn != null) activeBtn.setStyle(active);
     }
 
+    /** 🙈 نمایش/مخفی‌سازی ستون دسته‌بندی‌ها (در چت، ثبت آگهی و پنل مدیریت مخفی می‌شود) */
+    private void setCategorySidebarVisible(boolean visible) {
+        if (mainBorderPane == null || categoryVBox == null) return;
+        mainBorderPane.setRight(visible ? categoryVBox : null);
+    }
+
     public void showHomeScreen() {
         setActiveTopBarSection("home");
+        setCategorySidebarVisible(true);
         loadCategoriesIntoSidebar();
         String query = (searchField != null && searchField.getText() != null)
                 ? searchField.getText().trim() : "";
@@ -366,6 +373,7 @@ public class HelloController {
     @FXML
     protected void onChatScreenClick() {
         setActiveTopBarSection("chat");
+        setCategorySidebarVisible(false);
         client.sendAsync(authorizedGet(BASE_URL + "/api/chat/conversations"), HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> Platform.runLater(() -> {
                     checkAndRefreshToken(response);
@@ -466,6 +474,7 @@ public class HelloController {
     @FXML
     protected void onLoadMyAdsClick() {
         setActiveTopBarSection("myDivar");
+        setCategorySidebarVisible(true);
         // 🔍 فیلترها و جستجوی ردیف بالا روی آگهی‌های من هم اعمال می‌شود
         StringBuilder myUrl = new StringBuilder(BASE_URL + "/api/advertisements/my?sort=" + filterSort);
         String query = (searchField != null && searchField.getText() != null) ? searchField.getText().trim() : "";
@@ -495,6 +504,7 @@ public class HelloController {
 
     private void showFavoritesScreen() {
         setActiveTopBarSection("myDivar");
+        setCategorySidebarVisible(true);
         client.sendAsync(authorizedGet(BASE_URL + "/api/favorites"), HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> Platform.runLater(() -> {
                     checkAndRefreshToken(response);
@@ -1334,6 +1344,7 @@ public class HelloController {
     }
 
     private void openChatPane(long conversationId, String otherUser, String adTitle) {
+        setCategorySidebarVisible(false);
         setActiveTopBarSection("chat");
         VBox messagesBox = new VBox(8);
         messagesBox.setPadding(new Insets(15));
@@ -1497,6 +1508,7 @@ public class HelloController {
 
     private void openAdminPanel() {
         setActiveTopBarSection("myDivar");
+        setCategorySidebarVisible(false);
         mainBorderPane.setCenter(new AdminPanelController(this::showHomeScreen).createView());
     }
 
@@ -1505,6 +1517,7 @@ public class HelloController {
     @FXML
     protected void onRegisterAdScreenClick() {
         setActiveTopBarSection("register");
+        setCategorySidebarVisible(false);
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("register-ad-view.fxml"));
             Parent view = loader.load();
