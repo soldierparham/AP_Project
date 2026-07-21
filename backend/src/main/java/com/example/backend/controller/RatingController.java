@@ -5,6 +5,7 @@ import com.example.backend.model.Rating;
 import com.example.backend.repository.AdvertisementRepository;
 import com.example.backend.repository.ConversationRepository;
 import com.example.backend.repository.RatingRepository;
+import com.example.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +19,11 @@ import java.util.Optional;
 
 /**
  * ⭐ امتیازدهی به فروشنده (۱ تا ۵) — مطابق سند پروژه:
- * POST /api/ratings                    ← ثبت امتیاز { "adId": 1, "score": 5 }
- * GET  /api/ratings/ad/{adId}          ← میانگین امتیاز فروشنده یک آگهی
- * GET  /api/ratings/seller/{username}  ← میانگین امتیاز یک فروشنده
+ *   POST /api/ratings                 ← ثبت امتیاز { "adId": 1, "score": 5 }
+ *   GET  /api/ratings/ad/{adId}       ← میانگین امتیاز فروشنده یک آگهی
+ *   GET  /api/ratings/seller/{username} ← میانگین امتیاز یک فروشنده
  * قوانین: امتیاز به خود ممنوع، امتیاز تکراری برای یک آگهی ممنوع
+ * 🚫 جدید: امتیازدهی به فروشنده مسدودشده و امتیازدهی توسط کاربر مسدودشده ممنوع است
  */
 @RestController
 @RequestMapping("/api/ratings")
@@ -37,9 +39,21 @@ public class RatingController {
     @Autowired
     private ConversationRepository conversationRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    /**
+     * 🚫 بررسی مسدود بودن کاربر
+     */
+    private boolean isBlocked(String username) {
+        return userRepository.findByUsername(username)
+                .map(u -> "BLOCKED".equalsIgnoreCase(u.getStatus()))
+                .orElse(false);
+    }
+
     @Transactional
     @PostMapping
-    public ResponseEntity<?> submitRating(@RequestBody Map<String, Object> body, Principal principal) {
+    public ResponseEntity submitRating(@RequestBody Map<String, Object> body, Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
@@ -65,19 +79,31 @@ public class RatingController {
                     .body(Map.of("message", "امتیاز باید عددی بین ۱ تا ۵ باشد.", "status", 400));
         }
 
-        Optional<Advertisement> adOpt = advertisementRepository.findById(adId);
+        Optional adOpt = advertisementRepository.findById(adId);
         if (adOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "آگهی مورد نظر یافت نشد.", "status", 404));
         }
 
-        Advertisement ad = adOpt.get();
+        Advertisement ad = (Advertisement) adOpt.get();
         String rater = principal.getName();
         String seller = ad.getOwnerUsername();
 
         if (rater.equals(seller)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "شما نمی‌توانید به خودتان امتیاز دهید.", "status", 400));
+        }
+
+        // 🚫 جدید: کاربر مسدودشده اجازه امتیازدهی ندارد
+        if (isBlocked(rater)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "حساب کاربری شما مسدود شده است و امکان امتیازدهی ندارید.", "status", 403));
+        }
+
+        // 🚫 جدید: امتیازدهی به فروشنده مسدودشده ممنوع است
+        if (isBlocked(seller)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "این فروشنده توسط مدیر مسدود شده است و امکان امتیازدهی به او وجود ندارد.", "status", 403));
         }
 
         // ✅ فقط خریداری که درباره این کالا با فروشنده گفتگو کرده (یا از طریق چت خرید را انجام داده) می‌تواند امتیاز دهد
@@ -105,15 +131,15 @@ public class RatingController {
     }
 
     @GetMapping("/ad/{adId}")
-    public ResponseEntity<?> getRatingForAd(@PathVariable Long adId) {
-        Optional<Advertisement> adOpt = advertisementRepository.findById(adId);
+    public ResponseEntity getRatingForAd(@PathVariable Long adId) {
+        Optional adOpt = advertisementRepository.findById(adId);
         if (adOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "آگهی مورد نظر یافت نشد.", "status", 404));
         }
 
-        String seller = adOpt.get().getOwnerUsername();
-        List<Rating> ratings = ratingRepository.findBySellerUsername(seller);
+        String seller = ((Advertisement) adOpt.get()).getOwnerUsername();
+        List ratings = ratingRepository.findBySellerUsername(seller);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
@@ -124,8 +150,8 @@ public class RatingController {
     }
 
     @GetMapping("/seller/{username}")
-    public ResponseEntity<?> getRatingForSeller(@PathVariable String username) {
-        List<Rating> ratings = ratingRepository.findBySellerUsername(username);
+    public ResponseEntity getRatingForSeller(@PathVariable String username) {
+        List ratings = ratingRepository.findBySellerUsername(username);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
