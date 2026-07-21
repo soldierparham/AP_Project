@@ -1,4 +1,4 @@
-package com.example.backend.config; // 📂 نام پکیج خود را مطمئن شوید
+package com.example.backend.config;
 
 import com.example.backend.security.JwtFilter;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,6 +10,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -26,6 +28,12 @@ public class SecurityConfig {
     @Autowired
     private JwtFilter jwtFilter;
 
+    // 🔐 جدید: انکودر رمز عبور BCrypt برای هش کردن رمزها
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -35,22 +43,25 @@ public class SecurityConfig {
 
                 // ۲. تنظیم دسترسی‌های دقیق بر اساس کنترلر
                 .authorizeHttpRequests(auth -> auth
-                        // 🔓 آزاد کردن درخواست‌های Preflight (OPTIONS) جهت هماهنگی مرورگر و فرانت‌انند
+                        // 🔓 آزاد کردن درخواست‌های Preflight (OPTIONS)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // مسیرهای عمومی پروژه شما که نیاز به توکن ندارند
+                        // مسیرهای عمومی که نیاز به توکن ندارند
                         .requestMatchers("/api/login", "/api/register", "/api/auth/logout").permitAll()
                         .requestMatchers("/error").permitAll()
 
-                        // 🔓 🚀 اضافه شد: آزاد کردن مسیر آپلود و پوشه دانلود تصاویر
-                        .requestMatchers("/api/upload", "/api/upload/**").permitAll() // 🔓 آزاد کردن مسیر با پیشوند api
+                        // ❤️ جدید: اندپوینت سلامت سرور (مطابق سند راهنما)
+                        .requestMatchers("/api/health").permitAll()
+
+                        // 🔓 مسیر آپلود و پوشه دانلود تصاویر
+                        .requestMatchers("/api/upload", "/api/upload/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
 
-                        // 🔒 بقیه اندپوینت‌ها قفل باشند و نیاز به توکن معتبر دارند
+                        // 🔒 بقیه اندپوینت‌ها نیاز به توکن معتبر دارند
                         .anyRequest().authenticated()
                 )
 
-                // ۳. شاه‌کلید رفع ارور ۴۰۳ و تبدیل به ۴۰۱
+                // ۳. تبدیل ارور ۴۰۳ به ۴۰۱ با پیام تمیز
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             System.out.println("🚨 [SecurityConfig] توکن منقضی یا مفقود شده؛ هدایت کاربر با وضعیت 401. مسیر درخواست: " + request.getRequestURI());
@@ -65,12 +76,13 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // ۵. قرار دادن فیلتر هوشمند قبل از فیلتر اصلی اسپرینگ
+                // ۵. قرار دادن فیلتر JWT قبل از فیلتر اصلی اسپرینگ
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
-    // 🌐 تنظیمات سراسری CORS برای باز کردن کانال ارتباطی فرانت‌انند
+
+    // 🌐 تنظیمات سراسری CORS
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

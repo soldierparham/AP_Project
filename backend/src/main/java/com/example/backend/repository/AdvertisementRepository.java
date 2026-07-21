@@ -2,16 +2,23 @@ package com.example.backend.repository;
 
 import com.example.backend.model.Advertisement;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
 public interface AdvertisementRepository extends JpaRepository<Advertisement, Long> {
 
-    // 1. لیست آگهی‌های اختصاصی هر کاربر (برای صفحه "آگهی‌های من")
+    // آگهی‌های یک کاربر مشخص
     List<Advertisement> findByOwnerUsername(String ownerUsername);
 
-    // 2. لیست تمام آگهی‌ها به جز مالِ خودِ کاربر (برای صفحه اصلی)
+    // آگهی‌های همه کاربران به جز کاربر جاری
     List<Advertisement> findByOwnerUsernameNot(String ownerUsername);
+
+    // 🟢 جدید: آگهی‌ها بر اساس وضعیت (برای پنل مدیریت)
+    List<Advertisement> findByStatus(String status);
+
+    // 🟢 جدید: آگهی‌های فعال دیگران (نمایش عمومی فقط آگهی‌های ACTIVE)
+    List<Advertisement> findByStatusAndOwnerUsernameNot(String status, String ownerUsername);
+
+    // 🟢 جدید: شمارش آگهی‌ها بر اساس وضعیت (برای داشبورد آماری مدیر)
+    long countByStatus(String status);
 }

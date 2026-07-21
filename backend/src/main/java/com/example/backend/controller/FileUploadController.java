@@ -2,7 +2,6 @@ package com.example.backend.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -10,53 +9,75 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * 📷 آپلود تصویر آگهی — نسخه تکمیل‌شده:
+ * - پشتیبانی همزمان از کلید "file" (تک‌فایل) و "files" (چند فایل — گالری تصاویر)
+ *   ⚠️ رفع باگ قبلی: فرانت (uploadMultipleFiles) فایل‌ها را با کلید "files" می‌فرستاد
+ *   ولی بک‌اند فقط کلید "file" را می‌پذیرفت و آپلود چندتصویری شکست می‌خورد.
+ * - خروجی: مسیرهای فایل‌ها با کاما از هم جدا می‌شوند (مثل /uploads/a.jpg,/uploads/b.jpg)
+ */
 @RestController
-@RequestMapping("/api/upload")   // ✅ اصلاح شد: تغییر آدرس پایه به /upload تا با فرانت‌انند یکی شود
 @CrossOrigin(origins = "*")
 public class FileUploadController {
 
-    // پوشه‌ای که عکس‌ها در آن ذخیره می‌شوند
-    private static final String UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/";
+    private static final String UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
 
-    @PostMapping // ✅ اصلاح شد: حذف /upload اضافی تا آدرس نهایی دقیقاً localhost:8080/upload شود
-    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "فایل ارسال شده خالی است."));
+    // ⚠️ فرانت‌اند به /upload (بدون /api) پست می‌کند؛ هر دو مسیر پذیرفته می‌شوند
+    @PostMapping({"/upload", "/api/upload"})
+    public ResponseEntity<?> uploadFiles(
+            @RequestParam(value = "file", required = false) MultipartFile file,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files) {
+
+        List<MultipartFile> allFiles = new ArrayList<>();
+        if (files != null) {
+            allFiles.addAll(files);
+        }
+        if (file != null) {
+            allFiles.add(file);
+        }
+        allFiles.removeIf(f -> f == null || f.isEmpty());
+
+        if (allFiles.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "هیچ فایلی برای آپلود ارسال نشده است.", "status", 400));
         }
 
         try {
-            // ۱. مطمئن شدن از وجود پوشه uploads
-            File directory = new File(UPLOAD_DIR);
-            if (!directory.exists()) {
-                directory.mkdirs();
+            Files.createDirectories(Path.of(UPLOAD_DIR));
+
+            List<String> savedUrls = new ArrayList<>();
+            for (MultipartFile f : allFiles) {
+                String originalName = f.getOriginalFilename();
+                String extension = "";
+                if (originalName != null && originalName.contains(".")) {
+                    extension = originalName.substring(originalName.lastIndexOf('.'));
+                }
+                String newFileName = UUID.randomUUID() + extension;
+
+                File destination = new File(UPLOAD_DIR + newFileName);
+                f.transferTo(destination);
+
+                savedUrls.add("/uploads/" + newFileName);
             }
 
-            // ۲. تمیزکاری نام فایل و تولید نام غیرتکراری با UUID
-            String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-            String fileExtension = "";
-            if (originalFileName.contains(".")) {
-                fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            }
-            String newFileName = UUID.randomUUID().toString() + fileExtension;
+            String joinedUrls = String.join(",", savedUrls);
 
-            // ۳. ذخیره فیزیکی بایت‌های فایل روی هارد سرور
-            Path path = Paths.get(UPLOAD_DIR + newFileName);
-            Files.write(path, file.getBytes());
+            // هر دو کلید image_url و imageUrl برای سازگاری با فرانت برگردانده می‌شوند
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "message", "فایل(ها) با موفقیت آپلود شد.",
+                    "image_url", joinedUrls,
+                    "imageUrl", joinedUrls
+            ));
 
-            // ۴. برگشت دادن آدرس عکس با کلید image_url (دقیقاً همان چیزی که فرانت‌انند در extractImageUrlFromJson دنبالش می‌گردد)
-            String imageUrl = "/uploads/" + newFileName;
-            System.out.println("💾 [BACKEND] فایل با موفقیت ذخیره شد: " + imageUrl);
-
-            return ResponseEntity.ok(Map.of("image_url", imageUrl, "imageUrl", imageUrl));
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("code", "SERVER_ERROR", "message", "خطا در ذخیره فایل: " + e.getMessage()));
+                    .body(Map.of("message", "خطا در ذخیره فایل: " + e.getMessage(), "status", 500));
         }
     }
 }

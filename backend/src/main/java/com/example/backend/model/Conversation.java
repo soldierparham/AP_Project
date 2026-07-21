@@ -10,24 +10,31 @@ public class Conversation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "advertisement_id", nullable = false)
+    // 🔧 nullable=true: اگر آگهی حذف شود، مکالمه باقی می‌ماند و آگهی null می‌شود
+    // (در عمل deleteAd() مکالمات را هم حذف می‌کند، این فقط failsafe است)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "advertisement_id", nullable = true)
     private Advertisement advertisement;
 
     private String buyerUsername;
     private String sellerUsername;
 
-    // ۱. سازنده بدون آرگومان (برای استفاده JPA/Hibernate الزامی است)
+    // ساده‌سازی: عنوان آگهی را در خود Conversation ذخیره می‌کنیم
+    // تا حتی اگر آگهی حذف شود، تاریخچه چت قابل مشاهده باشد
+    @Column(name = "ad_title_snapshot")
+    private String adTitleSnapshot;
+
     public Conversation() {}
 
-    // ۲. سازنده ۳ آرگومانه (این بخش را حتماً اضافه کنید تا خطا برطرف شود)
     public Conversation(Advertisement advertisement, String buyerUsername, String sellerUsername) {
         this.advertisement = advertisement;
         this.buyerUsername = buyerUsername;
         this.sellerUsername = sellerUsername;
+        // عنوان آگهی را در همان لحظه ایجاد ذخیره می‌کنیم
+        this.adTitleSnapshot = advertisement != null ? advertisement.getTitle() : "";
     }
 
-    // --- بقیه گترها و سترها ---
+    // --- گترها و سترها ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Advertisement getAdvertisement() { return advertisement; }
@@ -36,4 +43,6 @@ public class Conversation {
     public void setBuyerUsername(String buyerUsername) { this.buyerUsername = buyerUsername; }
     public String getSellerUsername() { return sellerUsername; }
     public void setSellerUsername(String sellerUsername) { this.sellerUsername = sellerUsername; }
+    public String getAdTitleSnapshot() { return adTitleSnapshot; }
+    public void setAdTitleSnapshot(String adTitleSnapshot) { this.adTitleSnapshot = adTitleSnapshot; }
 }

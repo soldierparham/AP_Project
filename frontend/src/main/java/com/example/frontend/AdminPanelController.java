@@ -1,0 +1,505 @@
+package com.example.frontend;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.NodeOrientation;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+/**
+ * 🛡️ پنل مدیریت (فقط برای کاربر با نقش ADMIN نمایش داده می‌شود)
+ * شامل چهار تب: مدیریت آگهی‌ها، مدیریت کاربران، دسته‌بندی‌ها و داشبورد آماری
+ */
+public class AdminPanelController {
+
+    private static final String BASE_URL = "http://localhost:8080";
+
+    private final HttpClient client = HttpClient.newHttpClient();
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final Runnable onBack;
+
+    private VBox adsBox;
+    private VBox usersBox;
+    private VBox categoriesBox;
+    private VBox statsBox;
+    private ComboBox<String> statusCombo;
+
+    public AdminPanelController(Runnable onBack) {
+        this.onBack = onBack;
+    }
+
+    // ---------------------------------------------------------- UI
+
+    public BorderPane createView() {
+        BorderPane root = new BorderPane();
+        root.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        root.setStyle("-fx-background-color: #160f29;");
+
+        // هدر بالا
+        Label title = new Label("\ud83d\udee1\ufe0f پنل مدیریت سیستم");
+        title.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Button btnBack = new Button("⬅ بازگشت به صفحه اصلی");
+        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnBack.setOnAction(e -> onBack.run());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox header = new HBox(15, title, spacer, btnBack);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(20));
+
+        // تب‌ها
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabPane.setStyle("-fx-background-color: transparent;");
+
+        Tab adsTab = new Tab("\ud83d\udd52 مدیریت آگهی‌ها", buildAdsTab());
+        Tab usersTab = new Tab("\ud83d\udc65 کاربران", buildUsersTab());
+        Tab categoriesTab = new Tab("\ud83d\uddc2\ufe0f دسته‌بندی‌ها", buildCategoriesTab());
+        Tab statsTab = new Tab("\ud83d\udcca آمار", buildStatsTab());
+
+        tabPane.getTabs().addAll(adsTab, usersTab, categoriesTab, statsTab);
+
+        root.setTop(header);
+        root.setCenter(tabPane);
+
+        // بارگذاری اولیه داده‌ها
+        loadAds("PENDING");
+        loadUsers();
+        loadCategories();
+        loadStats();
+
+        return root;
+    }
+
+    private ScrollPane wrapScroll(VBox content) {
+        content.setPadding(new Insets(15));
+        content.setStyle("-fx-background-color: #160f29;");
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+        return scroll;
+    }
+
+    private VBox createCard() {
+        VBox card = new VBox(6);
+        card.setPadding(new Insets(12));
+        card.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
+        return card;
+    }
+
+    private Label infoLabel(String text) {
+        Label lbl = new Label(text);
+        lbl.setWrapText(true);
+        lbl.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+        return lbl;
+    }
+
+    private Label mutedLabel(String text) {
+        Label lbl = new Label(text);
+        lbl.setWrapText(true);
+        lbl.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+        return lbl;
+    }
+
+    // ---------------------------------------------------------- تب آگهی‌ها
+
+    private Node buildAdsTab() {
+        adsBox = new VBox(10);
+
+        statusCombo = new ComboBox<>();
+        statusCombo.getItems().addAll("PENDING", "ACTIVE", "REJECTED", "SOLD", "ALL");
+        statusCombo.setValue("PENDING");
+        statusCombo.setOnAction(e -> loadAds(statusCombo.getValue()));
+
+        Button btnRefresh = new Button("\ud83d\udd04 بروزرسانی");
+        btnRefresh.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnRefresh.setOnAction(e -> loadAds(statusCombo.getValue()));
+
+        HBox controls = new HBox(10, mutedLabel("فیلتر وضعیت:"), statusCombo, btnRefresh);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        controls.setPadding(new Insets(10, 15, 0, 15));
+
+        VBox container = new VBox(10, controls, wrapScroll(adsBox));
+        VBox.setVgrow(container.getChildren().get(1), Priority.ALWAYS);
+        container.setStyle("-fx-background-color: #160f29;");
+        return container;
+    }
+
+    private void loadAds(String status) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/admin/advertisements?status=" + status))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    adsBox.getChildren().clear();
+                    if (response.statusCode() != 200) {
+                        adsBox.getChildren().add(mutedLabel("خطا در دریافت آگهی‌ها (کد " + response.statusCode() + ")"));
+                        return;
+                    }
+                    try {
+                        JsonNode data = mapper.readTree(response.body()).path("data");
+                        if (!data.isArray() || data.isEmpty()) {
+                            adsBox.getChildren().add(mutedLabel("آگهی‌ای با این وضعیت وجود ندارد."));
+                            return;
+                        }
+                        for (JsonNode ad : data) {
+                            adsBox.getChildren().add(buildAdCard(ad));
+                        }
+                    } catch (Exception ex) {
+                        adsBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
+                    }
+                }));
+    }
+
+    private Node buildAdCard(JsonNode ad) {
+        long id = ad.path("id").asLong();
+        String status = ad.path("status").asText("");
+
+        VBox card = createCard();
+        card.getChildren().add(infoLabel("\ud83c\udff7\ufe0f " + ad.path("title").asText("بدون عنوان")));
+        card.getChildren().add(mutedLabel("فروشنده: " + ad.path("ownerUsername").asText("-")
+                + "  |  قیمت: " + ad.path("price").asText("-")
+                + "  |  شهر: " + ad.path("city").asText("-")
+                + "  |  دسته: " + ad.path("category").asText("-")
+                + "  |  وضعیت: " + status));
+
+        String description = ad.path("description").asText("");
+        if (!description.isBlank()) {
+            card.getChildren().add(mutedLabel(description));
+        }
+        String adminNote = ad.path("adminNote").asText("");
+        if (!adminNote.isBlank() && !"null".equals(adminNote)) {
+            card.getChildren().add(mutedLabel("\ud83d\udcdd یادداشت مدیر: " + adminNote));
+        }
+
+        HBox actions = new HBox(10);
+        actions.setAlignment(Pos.CENTER_LEFT);
+
+        if (!"ACTIVE".equalsIgnoreCase(status)) {
+            Button btnApprove = new Button("✅ تایید");
+            btnApprove.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnApprove.setOnAction(e -> postAdminAction("/api/admin/advertisements/" + id + "/approve", null,
+                    () -> loadAds(statusCombo.getValue())));
+            actions.getChildren().add(btnApprove);
+        }
+
+        if (!"REJECTED".equalsIgnoreCase(status)) {
+            Button btnReject = new Button("❌ رد");
+            btnReject.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnReject.setOnAction(e -> {
+                TextInputDialog dialog = new TextInputDialog();
+                dialog.setTitle("رد آگهی");
+                dialog.setHeaderText("دلیل رد آگهی را وارد کنید (اختیاری):");
+                dialog.setContentText("یادداشت:");
+                dialog.showAndWait().ifPresent(note -> {
+                    String body = "{\"note\":\"" + note.replace("\"", "\\\"") + "\"}";
+                    postAdminAction("/api/admin/advertisements/" + id + "/reject", body,
+                            () -> loadAds(statusCombo.getValue()));
+                });
+            });
+            actions.getChildren().add(btnReject);
+        }
+
+        Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
+        btnDelete.setStyle("-fx-background-color: #4a148c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnDelete.setOnAction(e -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "این آگهی برای همیشه حذف شود؟", ButtonType.YES, ButtonType.NO);
+            confirm.showAndWait().ifPresent(bt -> {
+                if (bt == ButtonType.YES) {
+                    deleteAdminAction("/api/admin/advertisements/" + id, () -> loadAds(statusCombo.getValue()));
+                }
+            });
+        });
+        actions.getChildren().add(btnDelete);
+
+        card.getChildren().add(actions);
+        return card;
+    }
+
+    // ---------------------------------------------------------- تب کاربران
+
+    private Node buildUsersTab() {
+        usersBox = new VBox(10);
+
+        Button btnRefresh = new Button("\ud83d\udd04 بروزرسانی لیست کاربران");
+        btnRefresh.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnRefresh.setOnAction(e -> loadUsers());
+
+        HBox controls = new HBox(10, btnRefresh);
+        controls.setPadding(new Insets(10, 15, 0, 15));
+
+        VBox container = new VBox(10, controls, wrapScroll(usersBox));
+        VBox.setVgrow(container.getChildren().get(1), Priority.ALWAYS);
+        container.setStyle("-fx-background-color: #160f29;");
+        return container;
+    }
+
+    private void loadUsers() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/admin/users"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    usersBox.getChildren().clear();
+                    if (response.statusCode() != 200) {
+                        usersBox.getChildren().add(mutedLabel("خطا در دریافت کاربران (کد " + response.statusCode() + ")"));
+                        return;
+                    }
+                    try {
+                        JsonNode data = mapper.readTree(response.body()).path("data");
+                        for (JsonNode user : data) {
+                            usersBox.getChildren().add(buildUserCard(user));
+                        }
+                    } catch (Exception ex) {
+                        usersBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
+                    }
+                }));
+    }
+
+    private Node buildUserCard(JsonNode user) {
+        long id = user.path("id").asLong();
+        String role = user.path("role").asText("USER");
+        String status = user.path("status").asText("ACTIVE");
+
+        VBox card = createCard();
+        card.getChildren().add(infoLabel("\ud83d\udc64 " + user.path("name").asText("-")
+                + " (" + user.path("username").asText("-") + ")"));
+        card.getChildren().add(mutedLabel("شماره: " + user.path("phoneNumber").asText("-")
+                + "  |  ایمیل: " + user.path("email").asText("-")
+                + "  |  نقش: " + role
+                + "  |  وضعیت: " + ("BLOCKED".equalsIgnoreCase(status) ? "مسدود" : "فعال")));
+
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            HBox actions = new HBox(10);
+            if ("BLOCKED".equalsIgnoreCase(status)) {
+                Button btnUnblock = new Button("\ud83d\udd13 رفع مسدودی");
+                btnUnblock.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                btnUnblock.setOnAction(e -> postAdminAction("/api/admin/users/" + id + "/unblock", null, this::loadUsers));
+                actions.getChildren().add(btnUnblock);
+            } else {
+                Button btnBlock = new Button("\ud83d\udeab مسدود کردن");
+                btnBlock.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                btnBlock.setOnAction(e -> postAdminAction("/api/admin/users/" + id + "/block", null, this::loadUsers));
+                actions.getChildren().add(btnBlock);
+            }
+            card.getChildren().add(actions);
+        }
+
+        return card;
+    }
+
+    // ---------------------------------------------------------- تب دسته‌بندی‌ها
+
+    private Node buildCategoriesTab() {
+        categoriesBox = new VBox(10);
+
+        TextField txtName = new TextField();
+        txtName.setPromptText("نام دسته‌بندی جدید...");
+        txtName.setStyle("-fx-background-color: #241942; -fx-text-fill: white; -fx-prompt-text-fill: #b9a6df; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';");
+        HBox.setHgrow(txtName, Priority.ALWAYS);
+
+        Button btnAdd = new Button("➕ افزودن");
+        btnAdd.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnAdd.setOnAction(e -> {
+            String name = txtName.getText() == null ? "" : txtName.getText().trim();
+            if (name.isEmpty()) {
+                return;
+            }
+            String body = "{\"name\":\"" + name.replace("\"", "\\\"") + "\"}";
+            postAdminAction("/api/admin/categories", body, () -> {
+                txtName.clear();
+                loadCategories();
+            });
+        });
+
+        HBox controls = new HBox(10, txtName, btnAdd);
+        controls.setPadding(new Insets(10, 15, 0, 15));
+
+        VBox container = new VBox(10, controls, wrapScroll(categoriesBox));
+        VBox.setVgrow(container.getChildren().get(1), Priority.ALWAYS);
+        container.setStyle("-fx-background-color: #160f29;");
+        return container;
+    }
+
+    private void loadCategories() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/admin/categories"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    categoriesBox.getChildren().clear();
+                    if (response.statusCode() != 200) {
+                        categoriesBox.getChildren().add(mutedLabel("خطا در دریافت دسته‌بندی‌ها (کد " + response.statusCode() + ")"));
+                        return;
+                    }
+                    try {
+                        JsonNode data = mapper.readTree(response.body()).path("data");
+                        for (JsonNode category : data) {
+                            long id = category.path("id").asLong();
+
+                            Label lblName = new Label("\ud83d\uddc2\ufe0f " + category.path("name").asText("-"));
+                            lblName.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+                            Region spacer = new Region();
+                            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                            Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
+                            btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                            btnDelete.setOnAction(e -> deleteAdminAction("/api/admin/categories/" + id, this::loadCategories));
+
+                            HBox row = new HBox(10, lblName, spacer, btnDelete);
+                            row.setAlignment(Pos.CENTER_LEFT);
+                            row.setPadding(new Insets(10));
+                            row.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
+
+                            categoriesBox.getChildren().add(row);
+                        }
+                    } catch (Exception ex) {
+                        categoriesBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
+                    }
+                }));
+    }
+
+    // ---------------------------------------------------------- تب آمار
+
+    private Node buildStatsTab() {
+        statsBox = new VBox(10);
+
+        Button btnRefresh = new Button("\ud83d\udd04 بروزرسانی آمار");
+        btnRefresh.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnRefresh.setOnAction(e -> loadStats());
+
+        HBox controls = new HBox(10, btnRefresh);
+        controls.setPadding(new Insets(10, 15, 0, 15));
+
+        VBox container = new VBox(10, controls, wrapScroll(statsBox));
+        VBox.setVgrow(container.getChildren().get(1), Priority.ALWAYS);
+        container.setStyle("-fx-background-color: #160f29;");
+        return container;
+    }
+
+    private void loadStats() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/admin/stats"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    statsBox.getChildren().clear();
+                    if (response.statusCode() != 200) {
+                        statsBox.getChildren().add(mutedLabel("خطا در دریافت آمار (کد " + response.statusCode() + ")"));
+                        return;
+                    }
+                    try {
+                        JsonNode data = mapper.readTree(response.body()).path("data");
+                        statsBox.getChildren().add(buildStatRow("\ud83d\udc65 تعداد کل کاربران", data.path("totalUsers").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\ud83d\udeab کاربران مسدود", data.path("blockedUsers").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\ud83c\udff7\ufe0f تعداد کل آگهی‌ها", data.path("totalAds").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\ud83d\udd52 در انتظار تایید", data.path("pendingAds").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\ud83d\udfe2 آگهی‌های فعال", data.path("activeAds").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("❌ آگهی‌های رد شده", data.path("rejectedAds").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("✅ فروخته شده", data.path("soldAds").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\ud83d\udcac تعداد گفتگوها", data.path("totalConversations").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\u2709\ufe0f تعداد پیام‌ها", data.path("totalMessages").asText("0")));
+                        statsBox.getChildren().add(buildStatRow("\u2b50 تعداد امتیازها", data.path("totalRatings").asText("0")));
+                    } catch (Exception ex) {
+                        statsBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
+                    }
+                }));
+    }
+
+    private Node buildStatRow(String title, String value) {
+        Label lblTitle = new Label(title);
+        lblTitle.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label lblValue = new Label(value);
+        lblValue.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        HBox row = new HBox(10, lblTitle, spacer, lblValue);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(12));
+        row.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
+        return row;
+    }
+
+    // ---------------------------------------------------------- ابزارهای HTTP
+
+    private void postAdminAction(String path, String jsonBody, Runnable onSuccess) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + path))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken);
+
+        if (jsonBody != null) {
+            builder.header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, java.nio.charset.StandardCharsets.UTF_8));
+        } else {
+            builder.POST(HttpRequest.BodyPublishers.noBody());
+        }
+
+        client.sendAsync(builder.build(), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        onSuccess.run();
+                    } else {
+                        showError(response.body(), response.statusCode());
+                    }
+                }));
+    }
+
+    private void deleteAdminAction(String path, Runnable onSuccess) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + path))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .DELETE()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        onSuccess.run();
+                    } else {
+                        showError(response.body(), response.statusCode());
+                    }
+                }));
+    }
+
+    private void showError(String responseBody, int statusCode) {
+        String message = "عملیات ناموفق بود (کد " + statusCode + ")";
+        try {
+            JsonNode node = mapper.readTree(responseBody);
+            if (node.hasNonNull("message")) {
+                message = node.get("message").asText();
+            }
+        } catch (Exception ignored) {
+        }
+        Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
+        alert.setHeaderText(null);
+        alert.show();
+    }
+}

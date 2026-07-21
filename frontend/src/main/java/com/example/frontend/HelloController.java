@@ -7,9 +7,11 @@ import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
-import javafx.geometry.NodeOrientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -17,31 +19,72 @@ import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 🏠 کنترلر صفحه اصلی — نسخه تکمیل‌شده مطابق سند پروژه:
+ * ⭐ علاقه‌مندی‌ها، ⭐ امتیازدهی به فروشنده، ✅ فروخته شد،
+ * 🔍 فیلترهای ترکیبی و مرتب‌سازی، 🛡️ دسترسی به پنل مدیریت برای ADMIN،
+ * 🏷️ نمایش وضعیت آگهی‌ها در بخش «آگهی‌های من» و 💬 چت داخلی.
+ */
 public class HelloController {
 
+    // ⚠️ باید public بماند؛ کلاس‌های دیگر (مثل RegisterAdController) از HelloController.BASE_URL استفاده می‌کنند
     public static final String BASE_URL = "http://localhost:8080";
-    private static final boolean FORCE_SHOW_BUTTONS = false;
 
     @FXML
     private BorderPane mainBorderPane;
 
     @FXML
     private Button myDivarButton;
+    @FXML
+    private Button btnRegisterNav;
+    @FXML
+    private Button btnChatNav;
+    @FXML
+    private VBox categoryVBox;
 
     @FXML
     private TextField searchField;
 
-    private final ContextMenu hoverMenu = new ContextMenu();
     private final HttpClient client = HttpClient.newHttpClient();
+    private final ContextMenu hoverMenu = new ContextMenu();
+
+    private String cachedAdsJson = "";
+    private boolean cachedIsMyAdsView = false;
+    private boolean cachedIsFavoritesView = false;
+
+    // 🔍 کنترل‌های فیلتر و مرتب‌سازی در ردیف بالا
+    @FXML private ComboBox<String> cityFilterCombo;
+    @FXML private ComboBox<String> sortFilterCombo;
+    @FXML private TextField minPriceField;
+    @FXML private TextField maxPriceField;
+
+    // 🔍 فیلترهای ترکیبی (امتیازی)
+    private String filterCategory = "";
+    private String filterCity = "";
+    private String filterMinPrice = "";
+    private String filterMaxPrice = "";
+    private String filterSort = "newest";
+
+    // ---------------------------------------------------------- شروع
 
     // 💾 کش کردن اطلاعات آگهی‌ها برای جستجوی فوق‌سریع و محلی بدون تاخیر سرور
     private String cachedAdsJson = "";
@@ -49,673 +92,597 @@ public class HelloController {
 
     @FXML
     public void initialize() {
-        MenuItem profileItem = new MenuItem("👤 پروفایل کاربری");
-        MenuItem logoutItem = new MenuItem("🔒 خروج از حساب");
+        // 🔑 اصلاح مهم: نام کاربری واقعی از توکن JWT خوانده می‌شود.
+        // پاسخ لاگین فیلد username ندارد و LoginController شماره تلفن را ذخیره می‌کرد؛
+        // در نتیجه مقایسه فرستنده پیام با کاربر جاری همیشه شکست می‌خورد و همه پیام‌ها سمت چپ می‌افتادند.
+        String tokenUsername = extractUsernameFromToken();
+        if (!tokenUsername.isBlank()) {
+            MainApplication.currentUsername = tokenUsername;
+        }
 
-        hoverMenu.setStyle(
-                "-fx-background-color: #241942;" +
-                        "-fx-border-color: #3b286b;" +
-                        "-fx-border-width: 1px;" +
-                        "-fx-border-radius: 6px;" +
-                        "-fx-background-radius: 6px;" +
-                        "-fx-padding: 5px;"
-        );
+        MenuItem profileItem = new MenuItem("\ud83d\udc64 آگهی‌های من");
+        profileItem.setOnAction(e -> onLoadMyAdsClick());
 
-        profileItem.setStyle("-fx-text-fill: white; -fx-font-family: 'Segoe UI', 'Vazirmatn'; -fx-font-size: 13px; -fx-cursor: hand;");
-        logoutItem.setStyle("-fx-text-fill: #ff5555; -fx-font-family: 'Segoe UI', 'Vazirmatn'; -fx-font-size: 13px; -fx-font-weight: bold; -fx-cursor: hand;");
+        MenuItem favoritesItem = new MenuItem("\u2b50 علاقه‌مندی‌های من");
+        favoritesItem.setOnAction(e -> showFavoritesScreen());
 
-        hoverMenu.getItems().addAll(profileItem, logoutItem);
+        MenuItem logoutItem = new MenuItem("\ud83d\udeaa خروج از حساب");
+        logoutItem.setOnAction(e -> onLogoutClick());
 
-        profileItem.setOnAction(event -> handleProfileClick());
-        logoutItem.setOnAction(event -> handleLogoutClick());
+        hoverMenu.getItems().addAll(profileItem, favoritesItem);
 
-        // باز شدن منوی شناور در حالت هاور موس روی دکمه دیوار
-        myDivarButton.setOnMouseEntered(event -> {
-            if (!hoverMenu.isShowing()) {
-                hoverMenu.show(myDivarButton, Side.BOTTOM, 0, 2);
-            }
-        });
+        // 🛡️ فقط برای مدیر سیستم
+        if ("ADMIN".equalsIgnoreCase(extractRoleFromToken())) {
+            MenuItem adminItem = new MenuItem("\ud83d\udee1\ufe0f پنل مدیریت");
+            adminItem.setOnAction(e -> openAdminPanel());
+            hoverMenu.getItems().add(adminItem);
+        }
 
-        // سیم‌کشی مستقیم دکمه دیوار برای بازگشت به صفحه اصلی در صورت کلیک
-        myDivarButton.setOnAction(event -> {
-            hoverMenu.hide();
-            showHomeScreen();
-        });
+        hoverMenu.getItems().add(logoutItem);
 
+        if (myDivarButton != null) {
+            myDivarButton.setOnMouseClicked(e ->
+                    hoverMenu.show(myDivarButton, Side.BOTTOM, 0, 5));
+        }
+
+        if (searchField != null) {
+            searchField.setOnAction(e -> refreshCurrentListView());
+        }
+
+        // 🔍 مقداردهی کنترل‌های فیلتر و مرتب‌سازی ردیف بالا
+        if (cityFilterCombo != null) {
+            cityFilterCombo.getItems().addAll("همه شهرها", "تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت");
+        }
+        if (sortFilterCombo != null) {
+            sortFilterCombo.getItems().addAll("جدیدترین", "ارزان‌ترین", "گران‌ترین");
+        }
+
+        setActiveTopBarSection("home");
+        updateCategoryButtonStyles(null);
         showHomeScreen();
     }
 
-    @FXML
-    private void onChatScreenClick() {
-        System.out.println("🔄 در حال بارگذاری محیط گفتگوها...");
-        ChatController chatController = new ChatController();
-        HBox chatLayout = chatController.createChatView();
-        mainBorderPane.setCenter(chatLayout);
-    }
+    // ---------------------------------------------------------- صفحه اصلی
 
-    private void openChatWithUser(Long adId, String targetUsername) {
-        System.out.println("🔄 در حال انتقال مستقیم به محیط گفتگو با: " + targetUsername + " برای آگهی با شناسه: " + adId);
-        ChatController chatController = new ChatController();
-        HBox chatLayout = chatController.createChatView(adId, targetUsername);
-        mainBorderPane.setCenter(chatLayout);
-    }
-
-    private void handleProfileClick() {
-        System.out.println("نمایش مشخصات کاربر: " + MainApplication.currentUsername);
-    }
-
-    private void handleLogoutClick() {
-        String username = MainApplication.currentUsername;
-
-        if (username != null) {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/api/auth/logout?username=" + username))
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
-
-            client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
-                    .exceptionally(e -> {
-                        System.err.println("خطا در ارتباط با سرور برای خروج: " + e.getMessage());
-                        return null;
-                    });
+    /** 🔶 تنظیم کادر طلایی دور دکمه فعال در نوار بالا */
+    private void setActiveTopBarSection(String section) {
+        String normal = "-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-background-radius: 6; -fx-border-radius: 6;";
+        String active = "-fx-background-color: transparent; -fx-text-fill: #ffc83b; -fx-cursor: hand; -fx-background-radius: 6; -fx-border-color: #ffc83b; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-padding: 6 14 6 14;";
+        String normalMD = "-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;";
+        String activeMD = "-fx-background-color: transparent; -fx-text-fill: #ffc83b; -fx-cursor: hand; -fx-border-color: #ffc83b; -fx-border-radius: 6; -fx-border-width: 1.5; -fx-padding: 4 8 4 8;";
+        if (myDivarButton != null) myDivarButton.setStyle(normalMD);
+        if (btnRegisterNav != null) btnRegisterNav.setStyle(normal);
+        if (btnChatNav != null) btnChatNav.setStyle(normal);
+        switch (section) {
+            case "myDivar": if (myDivarButton != null) myDivarButton.setStyle(activeMD); break;
+            case "register": if (btnRegisterNav != null) btnRegisterNav.setStyle(active); break;
+            case "chat": if (btnChatNav != null) btnChatNav.setStyle(active); break;
+            default: break;
         }
+    }
 
-        Stage currentStage = (Stage) myDivarButton.getScene().getWindow();
-        MainApplication.redirectToLogin(currentStage, "شما با موفقیت از حساب کاربری خود خارج شدید.");
+    /** 🔶 به‌روزکردن کادر دسته‌بندی فعال در ستون سمت راست */
+    private void updateCategoryButtonStyles(Button activeBtn) {
+        if (categoryVBox == null) return;
+        String normal = "-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;";
+        String active = "-fx-background-color: transparent; -fx-text-fill: #ffc83b; -fx-cursor: hand; -fx-border-color: #ffc83b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-width: 1.5;";
+        for (javafx.scene.Node node : categoryVBox.getChildren()) {
+            if (node instanceof Button) node.setStyle(normal);
+        }
+        if (activeBtn != null) activeBtn.setStyle(active);
     }
 
     public void showHomeScreen() {
-        System.out.println("🔄 در حال دریافت آخرین آگهی‌ها از دیتابیس...");
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/advertisements"))
-                .header("Authorization", "Bearer " + MainApplication.jwtToken)
-                .GET()
-                .build();
-
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (handleUnauthorized(response.statusCode())) return;
-
-                    Platform.runLater(() -> {
-                        if (response.statusCode() == 200) {
-                            cachedAdsJson = response.body();
-                            cachedIsMyAdsView = false;
-                            renderAdvertisements(cachedAdsJson, false, "");
-                        } else {
-                            showErrorAlert("خطای سیستم", "امکان دریافت آگهی‌ها از دیتابیس وجود ندارد. کد: " + response.statusCode());
-                        }
-                    });
-                })
-                .exceptionally(this::handleNetworkException);
+        setActiveTopBarSection("home");
+        String query = (searchField != null && searchField.getText() != null)
+                ? searchField.getText().trim() : "";
+        fetchHomeAds(query);
     }
 
-    private String cleanPrice(String priceStr) {
-        try {
-            if (priceStr == null || priceStr.trim().isEmpty() || priceStr.equals("مشخص نشده") || priceStr.equals("null")) {
-                return "۰";
-            }
-            java.math.BigDecimal bd = new java.math.BigDecimal(priceStr);
-            java.text.DecimalFormat df = new java.text.DecimalFormat("#,###");
-            return df.format(bd);
-        } catch (Exception e) {
-            return priceStr;
-        }
-    }
-
-    // 🔍 رویداد جستجوی آنی همزمان با تایپ کاربر
     @FXML
-    private void onSearchKeyReleased() {
-        String query = searchField.getText().trim();
-        renderAdvertisements(cachedAdsJson, cachedIsMyAdsView, query);
+    protected void onSearchClick() {
+        refreshCurrentListView();
     }
 
-    // 🏷️ فیلتر کردن هوشمند آگهی‌ها بر اساس دسته‌بندی
+    /**
+     * 🔍 جستجوی زنده هنگام تایپ در فیلد جستجو (متصل به onKeyReleased در FXML)
+     * در هر صفحه‌ای که باشید (اصلی یا آگهی‌های من) همان‌جا جستجو می‌کند
+     */
     @FXML
-    private void onCategoryClick(ActionEvent event) {
-        Button clickedButton = (Button) event.getSource();
-        String category = clickedButton.getText();
-        System.out.println("🎯 فیلتر دسته بندی روی: " + category);
-        searchField.setText(category);
-        renderAdvertisements(cachedAdsJson, cachedIsMyAdsView, category);
+    protected void onSearchKeyReleased() {
+        refreshCurrentListView();
     }
 
-    // 🟢 متد رندر کارت‌ها با ایمنی ۱۰۰٪ در برابر استثناها و مقادیر تهی
-    private void renderAdvertisements(String responseBody, boolean isMyAdsView, String searchQuery) {
-        try {
-            // گارد ریل برای پاسخ‌های نامعتبر یا خالی
-            if (responseBody == null || responseBody.trim().isEmpty()) {
-                System.err.println("❌ خطا: اطلاعات آگهی خالی است.");
-                return;
-            }
+    /**
+     * 🔍 تغییر فیلترها/مرتب‌سازی در ردیف بالا — روی همان صفحه فعلی اعمال می‌شود
+     */
+    @FXML
+    protected void onTopBarFilterChanged() {
+        String cityVal = (cityFilterCombo != null && cityFilterCombo.getValue() != null) ? cityFilterCombo.getValue() : "";
+        filterCity = "همه شهرها".equals(cityVal) ? "" : cityVal;
 
-            // ایجاد یک ساختار گرید با ۳ ستون شبیه طرح FXML شما
-            GridPane gridPane = new GridPane();
-            gridPane.setHgap(25);
-            gridPane.setVgap(15);
-            gridPane.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        String minP = (minPriceField != null && minPriceField.getText() != null) ? minPriceField.getText().trim() : "";
+        String maxP = (maxPriceField != null && maxPriceField.getText() != null) ? maxPriceField.getText().trim() : "";
+        // فقط مقادیر عددی معتبر به سرور ارسال می‌شود
+        filterMinPrice = minP.matches("\\d+(\\.\\d+)?") ? minP : "";
+        filterMaxPrice = maxP.matches("\\d+(\\.\\d+)?") ? maxP : "";
 
-            String targetJson = responseBody;
-            int dataIndex = responseBody.indexOf("\"data\"");
-            if (dataIndex != -1) {
-                targetJson = responseBody.substring(dataIndex);
-            }
-
-            Pattern objectPattern = Pattern.compile("\\{([^}]+)\\}");
-            Matcher objectMatcher = objectPattern.matcher(targetJson);
-
-            int validAdsCounter = 0;
-
-            while (objectMatcher.find()) {
-                String fields = objectMatcher.group(1);
-
-                String title = extractJsonField(fields, "title");
-                if (title.equals("null")) title = "بدون عنوان";
-
-                String description = extractJsonField(fields, "description");
-                if (description.equals("null")) description = "بدون توضیحات";
-
-                String price = extractJsonField(fields, "price");
-                if (price.equals("null")) price = "مشخص نشده";
-
-                String imageUrl = extractJsonField(fields, "imageUrl");
-
-                String adOwner = extractJsonField(fields, "ownerUsername").trim();
-                if (adOwner.equals("null")) adOwner = "مشخص نشده";
-
-                String idStr = extractJsonField(fields, "id");
-                final Long adId;
-                if (idStr.equals("مشخص نشده") || idStr.equals("null")) {
-                    adId = null;
-                } else {
-                    try {
-                        adId = Long.parseLong(idStr);
-                    } catch (NumberFormatException e) {
-                        System.err.println("⚠️ خطا در پردازش شناسه عددی آگهی: " + idStr);
-                        continue; // پرش ایمن از آگهی معیوب بدون کرش کردن کل برنامه
-                    }
-                }
-
-                // دریافت مقادیر اضافی برای افزایش دقت فیلترها در فرانت‌اند
-                String category = extractJsonField(fields, "category");
-                if (category.equals("null")) category = "";
-
-                String city = extractJsonField(fields, "city");
-                if (city.equals("null")) city = "";
-
-                if (searchQuery != null && !searchQuery.isEmpty()) {
-                    String normalizedQuery = searchQuery.toLowerCase();
-                    boolean matches = title.toLowerCase().contains(normalizedQuery)
-                            || description.toLowerCase().contains(normalizedQuery)
-                            || (!category.isEmpty() && category.toLowerCase().contains(normalizedQuery))
-                            || (!city.isEmpty() && city.toLowerCase().contains(normalizedQuery));
-                    if (!matches) {
-                        continue; // پرش از آگهی در صورت عدم انطباق با فیلتر جستجو
-                    }
-                }
-
-                String currentUser = MainApplication.currentUsername != null ? MainApplication.currentUsername.trim() : "";
-                boolean isOwner = isMyAdsView || FORCE_SHOW_BUTTONS || (!adOwner.equals("مشخص نشده") && adOwner.equalsIgnoreCase(currentUser));
-
-                // 💳 ایجاد کانتینر اصلی کارت به صورت افقی (HBox) با ابعاد بزرگ‌تر و شکیل‌تر
-                HBox adCard = new HBox(15);
-                adCard.setAlignment(Pos.CENTER_RIGHT);
-                adCard.setPrefHeight(170);   // 🚀 تغییر اندازه: ارتفاع از ۱۳۵ به ۱۷۰ بزرگتر شد
-                adCard.setMinWidth(380);     // 🚀 تغییر اندازه: عرض حداقلی از ۲۶۰ به ۳۲۰ افزایش یافت
-                adCard.setMaxWidth(480);     // 🚀 تغییر اندازه: عرض حداکثری از ۳۴۰ به ۴۲۰ افزایش یافت
-                adCard.setStyle(
-                        "-fx-background-color: #241942;" +
-                                "-fx-background-radius: 8px;" +
-                                "-fx-border-color: #3b286b;" +
-                                "-fx-border-radius: 8px;" +
-                                "-fx-padding: 15px;" +
-                                "-fx-cursor: hand;"
-                );
-
-                // افکت hover کارت‌ها
-                adCard.setOnMouseEntered(e -> adCard.setStyle(adCard.getStyle() + "-fx-border-color: #ffc83b; -fx-background-color: #2c1f52;"));
-                adCard.setOnMouseExited(e -> adCard.setStyle(adCard.getStyle().replace("-fx-border-color: #ffc83b; -fx-background-color: #2c1f52;", "-fx-border-color: #3b286b;")));
-
-                final String finalTitle = title;
-                final String finalDescription = description;
-                final String finalPrice = price;
-                final String finalImageUrl = imageUrl;
-                final String finalAdOwner = adOwner;
-
-                adCard.setOnMouseClicked(e -> {
-                    openAdDetailsPage(adId, finalTitle, finalDescription, finalPrice, finalAdOwner, finalImageUrl);
-                });
-
-                // 📝 بخش متنی آگهی در سمت راست (VBox)
-                VBox textContainer = new VBox(8); // فاصله بین متن‌ها افزایش یافت
-                textContainer.setAlignment(Pos.TOP_RIGHT);
-                HBox.setHgrow(textContainer, Priority.ALWAYS);
-
-                Label lblTitle = new Label(title);
-                lblTitle.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn', 'Segoe UI';");
-                lblTitle.setWrapText(true);
-                lblTitle.setMaxHeight(40);
-
-                Label lblDesc = new Label(description);
-                lblDesc.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn', 'Segoe UI';");
-                lblDesc.setWrapText(true);
-                lblDesc.setMaxHeight(35);
-
-                Label lblPrice = new Label(cleanPrice(price) + " تومان");
-                lblPrice.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 14px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
-
-                textContainer.getChildren().addAll(lblTitle, lblDesc, new Region() {{ VBox.setVgrow(this, Priority.ALWAYS); }}, lblPrice);
-
-                // نمایش کلید‌های ویرایش و حذف برای مالک آگهی
-                // نمایش کلید‌های ویرایش و حذف برای مالک آگهی
-                if (isOwner) {
-                    HBox actionsBox = new HBox(10); // فاصله بین دکمه‌ها از ۶ به ۱۰ افزایش یافت
-                    actionsBox.setAlignment(Pos.CENTER_RIGHT);
-
-                    // دکمه ویرایش بزرگ‌تر و زیباتر با افکت هاور
-                    Button btnEdit = new Button("✏️ ویرایش");
-                    btnEdit.setStyle(
-                            "-fx-background-color: #3b286b; " +
-                                    "-fx-text-fill: white; " +
-                                    "-fx-font-size: 14px; " + // سایز بزرگ‌تر
-                                    "-fx-cursor: hand; " +
-                                    "-fx-background-radius: 6px; " +
-                                    "-fx-padding: 6px 14px;" // پدینگ بزرگ‌تر
-                    );
-                    btnEdit.setOnMouseEntered(e -> btnEdit.setStyle(btnEdit.getStyle() + "-fx-background-color: #4c348a;"));
-                    btnEdit.setOnMouseExited(e -> btnEdit.setStyle(btnEdit.getStyle().replace("-fx-background-color: #4c348a;", "")));
-
-                    // دکمه حذف بزرگ‌تر و زیباتر با افکت هاور
-                    Button btnDelete = new Button("🗑️ حذف");
-                    btnDelete.setStyle(
-                            "-fx-background-color: #d93838; " +
-                                    "-fx-text-fill: white; " +
-                                    "-fx-font-size: 14px; " + // سایز بزرگ‌تر
-                                    "-fx-cursor: hand; " +
-                                    "-fx-background-radius: 6px; " +
-                                    "-fx-padding: 6px 14px;" // پدینگ بزرگ‌تر
-                    );
-                    btnDelete.setOnMouseEntered(e -> btnDelete.setStyle(btnDelete.getStyle() + "-fx-background-color: #f24e4e;"));
-                    btnDelete.setOnMouseExited(e -> btnDelete.setStyle(btnDelete.getStyle().replace("-fx-background-color: #f24e4e;", "")));
-
-                    btnEdit.setOnMouseClicked(Event::consume);
-                    btnDelete.setOnMouseClicked(Event::consume);
-
-                    btnDelete.setOnAction(e -> {
-                        if (adId != null) {
-                            Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION, "آیا از حذف این آگهی اطمینان دارید؟", ButtonType.YES, ButtonType.NO);
-                            confirmAlert.setHeaderText(null);
-                            confirmAlert.showAndWait().ifPresent(response -> {
-                                if (response == ButtonType.YES) {
-                                    onDeleteAdClick(adId);
-                                }
-                            });
-                        }
-                    });
-
-                    btnEdit.setOnAction(e -> {
-                        if (adId != null) {
-                            openEditDialog(adId, finalTitle, finalDescription, finalPrice, finalImageUrl);
-                        }
-                    });
-
-                    actionsBox.getChildren().addAll(btnEdit, btnDelete);
-                    textContainer.getChildren().add(actionsBox);
-                }
-
-                // 🖼️ بخش تصویر در سمت چپ (StackPane) با ابعاد بزرگ‌تر
-                StackPane imageContainer = new StackPane();
-                imageContainer.setPrefSize(140, 140);
-                imageContainer.setMinSize(140, 140);
-                imageContainer.setMaxSize(140, 140);
-                imageContainer.setStyle(
-                        "-fx-background-color: #160f29;" +
-                                "-fx-border-color: #3b286b;" +
-                                "-fx-border-width: 1px;" +
-                                "-fx-background-radius: 6px;" +
-                                "-fx-border-radius: 6px;"
-                );
-
-                ImageView adImageView = new ImageView();
-                adImageView.setFitWidth(130);
-                adImageView.setFitHeight(130);
-                adImageView.setPreserveRatio(true);
-
-                if (imageUrl != null && !imageUrl.equals("مشخص نشده") && !imageUrl.equals("null") && !imageUrl.trim().isEmpty()) {
-                    // جدا کردن آدرس‌ها با کاما و انتخاب اولین تصویر برای نمایش روی کارت آگهی
-                    String[] allImages = imageUrl.split(",");
-                    String cleanUrl = allImages[0].trim(); // 💡 تعریف درست متغیر cleanUrl از روی اولین عکس
-
-                    if (cleanUrl.startsWith("/")) {
-                        cleanUrl = cleanUrl.substring(1);
-                    }
-                    String finalPath = BASE_URL + "/" + cleanUrl;
-
-                    System.out.println("🖼️ [DEBUG] رندر تصویر کارت از: " + finalPath);
-                    Image image = new Image(finalPath, true);
-                    adImageView.setImage(image);
-                } else {
-                    try {
-                        adImageView.setImage(new Image(getClass().getResourceAsStream("/images/no-image.png")));
-                    } catch (Exception ex) {
-                        // نادیده گرفتن خطا
-                    }
-                }
-
-// ✅ فقط یک‌بار فرزند را به والد اضافه می‌کنیم
-                imageContainer.getChildren().add(adImageView);
-
-// قابلیت کلیک روی عکس جهت باز شدن پیش‌نمایش بزرگ
-                final String finalImageUrlForPreview = imageUrl;
-                imageContainer.setOnMouseClicked(e -> {
-                    e.consume();
-                    showImagePreview(finalImageUrlForPreview);
-                });
-
-                // ادغام اطلاعات کارت
-                adCard.getChildren().addAll(textContainer, imageContainer);
-
-                int column = validAdsCounter % 2;
-                int row = validAdsCounter / 2;
-                gridPane.add(adCard, column, row);
-                validAdsCounter++;
-            }
-
-            // پکیج‌بندی نهایی داخل ScrollPane
-            VBox layoutContainer = new VBox(15);
-            layoutContainer.setStyle("-fx-background-color: #160f29;");
-            layoutContainer.setPadding(new Insets(25, 25, 25, 10));
-
-            String headerTitle = isMyAdsView ? "آگهی‌های ثبت شده شما" : "آگهی‌های تازه دپارتمان";
-            Label lblHeader = new Label(headerTitle);
-            lblHeader.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
-
-            layoutContainer.getChildren().addAll(lblHeader, gridPane);
-
-            if (validAdsCounter == 0) {
-                Label noAdLabel = new Label("📭 هیچ آگهی متناسب با درخواست شما یافت نشد.");
-                noAdLabel.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
-                layoutContainer.getChildren().add(noAdLabel);
-            }
-
-            ScrollPane scrollPane = new ScrollPane(layoutContainer);
-            scrollPane.setFitToWidth(true);
-            scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29; -fx-border-color: transparent;");
-
-            mainBorderPane.setCenter(scrollPane);
-            System.out.println("✅ تعداد " + validAdsCounter + " آگهی در طرح افقی بزرگ رندر شد.");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("❌ خطا در اجرای رندر آگهی‌ها: " + e.getMessage());
-            showErrorAlert("خطا در سیستم رندر", "هنگام پردازش ساختار آگهی‌ها مشکلی پیش آمد.");
-        }
-    }
-
-    // 🖼️ متد جدید باز کردن پیش‌نمایش تصویر به صورت پاپ‌آپ مدرن و هماهنگ با دیزاین بنفش
-// 🖼️ ۲. اصلاح متد باز کردن پیش‌نمایش تصویر به صورت پاپ‌آپ مدرن
-    private void showImagePreview(String imageUrl) {
-        Dialog<Void> previewDialog = new Dialog<>();
-        previewDialog.setTitle("پیش‌نمایش تصویر کالا");
-
-        ButtonType closeButton = new ButtonType("بستن صفحه", ButtonBar.ButtonData.CANCEL_CLOSE);
-        previewDialog.getDialogPane().getButtonTypes().add(closeButton);
-
-        ImageView largeImageView = new ImageView();
-        largeImageView.setFitWidth(550);
-        largeImageView.setFitHeight(450);
-        largeImageView.setPreserveRatio(true);
-
-        if (imageUrl != null && !imageUrl.equals("مشخص نشده") && !imageUrl.equals("null") && !imageUrl.trim().isEmpty()) {
-            String cleanUrl = imageUrl.trim();
-            if (cleanUrl.startsWith("/")) {
-                cleanUrl = cleanUrl.substring(1);
-            }
-            String finalPath = BASE_URL + "/" + cleanUrl;
-            System.out.println("🖼️ [DEBUG] پیش‌نمایش بزرگ تصویر از: " + finalPath);
-            largeImageView.setImage(new Image(finalPath, true));
+        String sortLabel = (sortFilterCombo != null) ? sortFilterCombo.getValue() : null;
+        if ("ارزان‌ترین".equals(sortLabel)) {
+            filterSort = "cheapest";
+        } else if ("گران‌ترین".equals(sortLabel)) {
+            filterSort = "expensive";
         } else {
-            try {
-                largeImageView.setImage(new Image(getClass().getResourceAsStream("/images/no-image.png")));
-            } catch (Exception ex) {
-                return;
-            }
+            filterSort = "newest";
         }
 
-        VBox container = new VBox(largeImageView);
-        container.setAlignment(Pos.CENTER);
-        container.setPadding(new Insets(15));
-        container.setStyle("-fx-background-color: #160f29;");
-
-        DialogPane dialogPane = previewDialog.getDialogPane();
-        dialogPane.setContent(container);
-        dialogPane.setStyle("-fx-background-color: #160f29; -fx-border-color: #3b286b; -fx-border-width: 1px;");
-
-        dialogPane.lookupButton(closeButton).setStyle(
-                "-fx-background-color: #3b286b;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-family: 'Vazirmatn';" +
-                        "-fx-font-size: 13px;" +
-                        "-fx-cursor: hand;"
-        );
-
-        previewDialog.showAndWait();
+        refreshCurrentListView();
     }
-    private void openAdDetailsPage(Long adId, String title, String description, String rawPrice, String owner, String imageUrl) {
-        VBox detailsContainer = new VBox(20);
-        detailsContainer.setPadding(new Insets(30));
-        detailsContainer.setStyle("-fx-background-color: #160f29;");
-        detailsContainer.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
-        Button btnBack = new Button("⬅️ بازگشت به آگهی‌ها");
-        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-cursor: hand; -fx-background-radius: 6px; -fx-padding: 8px 16px;");
-        btnBack.setOnAction(e -> showHomeScreen());
+    /**
+     * 🔄 تازه‌سازی همان صفحه‌ای که کاربر در آن است — اگر در «آگهی‌های من» باشد، همان‌جا فیلتر می‌شود و به صفحه اول برنمی‌گردد
+     */
+    private void refreshCurrentListView() {
+        if (cachedIsMyAdsView) {
+            onLoadMyAdsClick();
+        } else if (cachedIsFavoritesView) {
+            showFavoritesScreen();
+        } else {
+            showHomeScreen();
+        }
+    }
 
-        VBox infoBox = new VBox(15);
-        infoBox.setStyle("-fx-background-color: #241942; -fx-padding: 25px; -fx-background-radius: 10px; -fx-border-color: #3b286b; -fx-border-radius: 10px;");
+    /**
+     * 🗂️ کلیک روی دکمه‌های دسته‌بندی در ستون راست (متصل به onAction در FXML)
+     * کلیک مجدد روی همان دسته = حذف فیلتر
+     */
+    @FXML
+    protected void onCategoryClick(ActionEvent event) {
+        if (event.getSource() instanceof Button) {
+            Button clicked = (Button) event.getSource();
+            String category = clicked.getText();
+            filterCategory = "همه محصولات".equals(category) ? "" : category;
+            updateCategoryButtonStyles("همه محصولات".equals(category) ? null : clicked);
+            refreshCurrentListView();
+        }
+    }
 
-        if (imageUrl != null && !imageUrl.equals("مشخص نشده") && !imageUrl.equals("null") && !imageUrl.trim().isEmpty()) {
-            ImageView detailsImageView = new ImageView();
-            detailsImageView.setFitWidth(400);
-            detailsImageView.setFitHeight(250);
-            detailsImageView.setPreserveRatio(true);
-            detailsImageView.setStyle("-fx-border-color: #3b286b; -fx-border-width: 1px; -fx-border-radius: 8px;");
+    /**
+     * 💬 دکمه «چت» در نوار بالا — نمایش لیست گفتگوهای کاربر
+     */
+    @FXML
+    protected void onChatScreenClick() {
+        setActiveTopBarSection("chat");
+        client.sendAsync(authorizedGet(BASE_URL + "/api/chat/conversations"), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        renderConversationsList(response.body());
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
 
-            String cleanUrl = imageUrl.trim();
-            if (cleanUrl.startsWith("/")) {
-                cleanUrl = cleanUrl.substring(1);
-            }
-            String finalPath = BASE_URL + "/" + cleanUrl;
-            System.out.println("🖼️ [DEBUG] لود تصویر جزئیات از: " + finalPath);
+    private void renderConversationsList(String responseBody) {
+        VBox listBox = new VBox(10);
+        listBox.setPadding(new Insets(20));
+        listBox.setStyle("-fx-background-color: #160f29;");
 
-            Image img = new Image(finalPath, true);
-            detailsImageView.setImage(img);
+        Label lblHeader = new Label("\ud83d\udcac گفتگوهای شما");
+        lblHeader.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 18px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
 
-            VBox imgWrapper = new VBox(detailsImageView);
-            imgWrapper.setAlignment(Pos.CENTER);
-            imgWrapper.setPadding(new Insets(0, 0, 15, 0));
-            infoBox.getChildren().add(imgWrapper);
+        Button btnHomeList = new Button("\ud83c\udfe0 صفحه اصلی");
+        btnHomeList.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnHomeList.setOnAction(e -> showHomeScreen());
+
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        HBox headerRow = new HBox(10, lblHeader, headerSpacer, btnHomeList);
+        headerRow.setAlignment(Pos.CENTER_LEFT);
+        listBox.getChildren().add(headerRow);
+
+        int dataIndex = responseBody.indexOf("\"data\"");
+        String dataPart = dataIndex >= 0 ? responseBody.substring(dataIndex) : responseBody;
+
+        Matcher matcher = Pattern.compile("\\{([^}]+)\\}").matcher(dataPart);
+        boolean anyFound = false;
+        while (matcher.find()) {
+            String convJson = matcher.group(1);
+            if (!convJson.contains("\"buyerUsername\"")) continue;
+            anyFound = true;
+
+            String convIdStr = extractJsonField(convJson, "id");
+            String buyer = extractJsonField(convJson, "buyerUsername");
+            String seller = extractJsonField(convJson, "sellerUsername");
+            String adTitle = extractJsonField(convJson, "adTitle");
+            String otherUser = buyer.equals(MainApplication.currentUsername) ? seller : buyer;
+
+            Button btnConv = new Button("\ud83d\udcac گفتگو با " + otherUser + " — " + adTitle);
+            btnConv.setMaxWidth(Double.MAX_VALUE);
+            btnConv.setStyle("-fx-background-color: #241942; -fx-text-fill: white; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10; -fx-cursor: hand; -fx-alignment: center-right; -fx-padding: 12; -fx-font-family: 'Vazirmatn';");
+            btnConv.setOnAction(e -> {
+                try {
+                    openChatPane(Long.parseLong(convIdStr), otherUser, adTitle);
+                } catch (NumberFormatException ignored) {
+                }
+            });
+            listBox.getChildren().add(btnConv);
         }
 
-        Label lblTitle = new Label(title);
-        lblTitle.setStyle("-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
-        lblTitle.setWrapText(true);
+        if (!anyFound) {
+            Label lblEmpty = new Label("هنوز گفتگویی ندارید. از صفحه جزئیات آگهی می‌توانید گفتگو را شروع کنید.");
+            lblEmpty.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
+            listBox.getChildren().add(lblEmpty);
+        }
 
-        Label lblPrice = new Label("💰 قیمت آگهی: " + cleanPrice(rawPrice) + " تومان");
-        lblPrice.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 18px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
-
-        Label lblOwner = new Label("👤 نام کاربری آگهی‌دهنده: " + owner);
-        lblOwner.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
-
-        Separator separator = new Separator();
-        separator.setStyle("-fx-background-color: #3b286b;");
-
-        Label lblDescTitle = new Label("📋 توضیحات آگهی:");
-        lblDescTitle.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
-
-        Label lblDesc = new Label(description);
-        lblDesc.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn'; -fx-line-spacing: 6px;");
-        lblDesc.setWrapText(true);
-
-        Button btnStartChat = new Button("💬 شروع گفتگو با آگهی‌دهنده");
-        btnStartChat.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 6px; -fx-padding: 10px 20px;");
-
-        btnStartChat.setOnAction(e -> openChatWithUser(adId, owner));
-
-        infoBox.getChildren().addAll(lblTitle, lblPrice, lblOwner, separator, lblDescTitle, lblDesc, btnStartChat);
-        detailsContainer.getChildren().addAll(btnBack, infoBox);
-
-        ScrollPane scrollPane = new ScrollPane(detailsContainer);
+        ScrollPane scrollPane = new ScrollPane(listBox);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29; -fx-border-color: transparent;");
-
+        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
         mainBorderPane.setCenter(scrollPane);
     }
 
-    private void openEditDialog(Long adId, String currentTitle, String currentDesc, String currentPrice, String currentImageUrl) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("✏️ ویرایش آگهی");
-        dialog.setHeaderText("مشخصات جدید آگهی را وارد کنید:");
+    private void fetchHomeAds(String searchQuery) {
+        StringBuilder url = new StringBuilder(BASE_URL + "/api/advertisements?sort=" + filterSort);
+        if (!searchQuery.isBlank()) url.append("&search=").append(encode(searchQuery));
+        if (!filterCategory.isBlank()) url.append("&category=").append(encode(filterCategory));
+        if (!filterCity.isBlank()) url.append("&city=").append(encode(filterCity));
+        if (!filterMinPrice.isBlank()) url.append("&minPrice=").append(encode(filterMinPrice));
+        if (!filterMaxPrice.isBlank()) url.append("&maxPrice=").append(encode(filterMaxPrice));
 
-        ButtonType saveButtonType = new ButtonType("💾 ذخیره تغییرات", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        client.sendAsync(authorizedGet(url.toString()), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        cachedAdsJson = response.body();
+                        cachedIsMyAdsView = false;
+                        cachedIsFavoritesView = false;
+                        renderAdvertisements(response.body(), false, searchQuery);
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert("خطا در دریافت آگهی‌ها (کد " + response.statusCode() + ")");
+                    }
+                }));
+    }
 
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20, 20, 10, 20));
-        grid.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+    // ---------------------------------------------------------- آگهی‌های من
 
-        String plainPrice = currentPrice;
-        try {
-            if (currentPrice != null && !currentPrice.equals("مشخص نشده") && !currentPrice.equals("null")) {
-                plainPrice = new java.math.BigDecimal(currentPrice).toPlainString();
-            }
-        } catch (Exception e) {
-            plainPrice = currentPrice;
-        }
+    @FXML
+    protected void onLoadMyAdsClick() {
+        setActiveTopBarSection("myDivar");
+        // 🔍 فیلترها و جستجوی ردیف بالا روی آگهی‌های من هم اعمال می‌شود
+        StringBuilder myUrl = new StringBuilder(BASE_URL + "/api/advertisements/my?sort=" + filterSort);
+        String query = (searchField != null && searchField.getText() != null) ? searchField.getText().trim() : "";
+        if (!query.isBlank()) myUrl.append("&search=").append(encode(query));
+        if (!filterCategory.isBlank()) myUrl.append("&category=").append(encode(filterCategory));
+        if (!filterCity.isBlank()) myUrl.append("&city=").append(encode(filterCity));
+        if (!filterMinPrice.isBlank()) myUrl.append("&minPrice=").append(encode(filterMinPrice));
+        if (!filterMaxPrice.isBlank()) myUrl.append("&maxPrice=").append(encode(filterMaxPrice));
 
-        TextField txtTitle = new TextField(currentTitle);
-        TextArea txtDesc = new TextArea(currentDesc);
-        txtDesc.setPrefRowCount(3);
-        txtDesc.setWrapText(true);
-        TextField txtPrice = new TextField(plainPrice);
+        client.sendAsync(authorizedGet(myUrl.toString()), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        cachedAdsJson = response.body();
+                        cachedIsMyAdsView = true;
+                        cachedIsFavoritesView = false;
+                        renderAdvertisements(response.body(), true, "");
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert("خطا در دریافت آگهی‌های شما (کد " + response.statusCode() + ")");
+                    }
+                }));
+    }
 
-        // 📁 ۱. استفاده از لیست به جای آرایه تک المانی برای ذخیره چندین فایل
-        final java.util.List<File> selectedNewImageFiles = new java.util.ArrayList<>();
+    // ---------------------------------------------------------- ⭐ علاقه‌مندی‌ها
 
-        // 🖼️ ۲. ایجاد یک کانتینر افقی با فاصله مناسب برای نمایش تمام پیش‌نمایش‌ها
-        HBox imagesPreviewContainer = new HBox(8);
-        imagesPreviewContainer.setAlignment(Pos.CENTER_LEFT);
+    private void showFavoritesScreen() {
+        setActiveTopBarSection("myDivar");
+        client.sendAsync(authorizedGet(BASE_URL + "/api/favorites"), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        cachedAdsJson = response.body();
+                        cachedIsMyAdsView = false;
+                        cachedIsFavoritesView = true;
+                        renderAdvertisements(response.body(), false, "");
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
 
-        Label lblImgPath = new Label("تصاویر قبلی تغییر نخواهند کرد.");
-        lblImgPath.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 11px;");
+    private void toggleFavorite(long adId) {
+        boolean removing = cachedIsFavoritesView;
 
-        // لود تصاویر قبلی آگهی (در صورتی که چند عکس با کاما جدا شده باشند)
-        if (currentImageUrl != null && !currentImageUrl.equals("مشخص نشده") && !currentImageUrl.equals("null") && !currentImageUrl.trim().isEmpty()) {
-            String[] oldUrls = currentImageUrl.split(",");
-            for (String oldUrl : oldUrls) {
-                String cleanUrl = oldUrl.trim();
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/favorites/" + adId))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken);
 
-                // اصلاح خطای محدوده متغیر با اعمال شرط روی همان متغیر
-                if (cleanUrl.startsWith("/")) {
-                    cleanUrl = cleanUrl.substring(1);
-                }
+        HttpRequest request = removing
+                ? builder.DELETE().build()
+                : builder.POST(HttpRequest.BodyPublishers.noBody()).build();
 
-                // اکنون cleanUrl بدون مشکل در اینجا قابل دسترسی است
-                ImageView oldImgView = new ImageView(new Image(BASE_URL + "/" + cleanUrl, true));
-                oldImgView.setFitWidth(60);
-                oldImgView.setFitHeight(45);
-                oldImgView.setPreserveRatio(true);
-                imagesPreviewContainer.getChildren().add(oldImgView);
-            }
-        }
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        if (removing) {
+                            showFavoritesScreen();
+                        } else {
+                            showSuccessAlert("آگهی به علاقه‌مندی‌های شما اضافه شد.");
+                        }
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
 
-        Button btnSelectImg = new Button("🔄 انتخاب عکس‌های جدید");
-        btnSelectImg.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-font-size: 11px; -fx-cursor: hand;");
-        btnSelectImg.setOnAction(e -> {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("انتخاب عکس‌های جدید آگهی");
-            fileChooser.getExtensionFilters().addAll(
-                    new FileChooser.ExtensionFilter("تصاویر", "*.png", "*.jpg", "*.jpeg")
-            );
+    // ---------------------------------------------------------- ✅ فروخته شد
 
-            // 🚀 ۳. فعال‌سازی قابلیت انتخاب چند عکس به صورت هم‌زمان
-            java.util.List<File> files = fileChooser.showOpenMultipleDialog(dialog.getOwner());
-            if (files != null && !files.isEmpty()) {
-                selectedNewImageFiles.clear();
-                imagesPreviewContainer.getChildren().clear();
-                selectedNewImageFiles.addAll(files);
+    private void markAdAsSold(long adId) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/advertisements/" + adId + "/sold"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
 
-                lblImgPath.setText(files.size() + " عکس جدید انتخاب شد.");
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        showSuccessAlert("آگهی با موفقیت به وضعیت «فروخته شده» تغییر کرد.");
+                        onLoadMyAdsClick();
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
 
-                // رندر داینامیک پیش‌نمایش عکس‌های انتخاب شده
-                for (File file : files) {
-                    ImageView imgView = new ImageView(new Image(file.toURI().toString()));
-                    imgView.setFitWidth(60);
-                    imgView.setFitHeight(45);
-                    imgView.setPreserveRatio(true);
-                    imagesPreviewContainer.getChildren().add(imgView);
-                }
+    // ---------------------------------------------------------- ابزارهای عمومی
+
+    private HttpRequest authorizedGet(String url) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private void checkAndRefreshToken(HttpResponse<String> response) {
+        Optional<String> header = response.headers().firstValue("Authorization");
+        header.ifPresent(h -> {
+            String token = h.startsWith("Bearer ") ? h.substring(7) : h;
+            if (!token.isBlank()) {
+                MainApplication.jwtToken = token;
             }
         });
+    }
 
-        HBox imageActionBox = new HBox(10);
-        imageActionBox.setAlignment(Pos.CENTER_LEFT);
-        imageActionBox.getChildren().addAll(btnSelectImg, imagesPreviewContainer, lblImgPath);
+    private void handleUnauthorized(int statusCode) {
+        Stage stage = (Stage) mainBorderPane.getScene().getWindow();
+        MainApplication.redirectToLogin(stage, "نشست شما منقضی شده است. لطفاً دوباره ورو�� کنید.");
+    }
 
-        grid.add(new Label("عنوان آگهی:"), 0, 0);
-        grid.add(txtTitle, 1, 0);
-        grid.add(new Label("توضیحات:"), 0, 1);
-        grid.add(txtDesc, 1, 1);
-        grid.add(new Label("قیمت (تومان):"), 0, 2);
-        grid.add(txtPrice, 1, 2);
-        grid.add(new Label("تصویر آگهی:"), 0, 3);
-        grid.add(imageActionBox, 1, 3);
+    private void showSuccessAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
+        alert.setHeaderText(null);
+        alert.show();
+    }
 
-        dialog.getDialogPane().setContent(grid);
+    private void showErrorAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR,
+                (message == null || message.isBlank() || "مشخص نشده".equals(message))
+                        ? "عملیات ناموفق بود. لطفاً دوباره تلاش کنید." : message,
+                ButtonType.OK);
+        alert.setHeaderText(null);
+        alert.show();
+    }
 
-        Optional<ButtonType> result = dialog.showAndWait();
-        if (result.isPresent() && result.get() == saveButtonType) {
+    /**
+     * استخراج مقدار یک فیلد از رشته JSON (رشته‌ای یا عددی)
+     */
+    private String extractJsonField(String source, String key) {
+        Pattern stringPattern = Pattern.compile("\"" + key + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+        Matcher matcher = stringPattern.matcher(source);
+        if (matcher.find()) {
+            return matcher.group(1).replace("\\\"", "\"").replace("\\n", "\n");
+        }
+        Pattern rawPattern = Pattern.compile("\"" + key + "\"\\s*:\\s*(-?[0-9.]+|true|false)");
+        Matcher rawMatcher = rawPattern.matcher(source);
+        if (rawMatcher.find()) {
+            return rawMatcher.group(1);
+        }
+        return "مشخص نشده";
+    }
+
+    // ---------------------------------------------------------- رندر لیست آگهی‌ها
+
+    private void renderAdvertisements(String responseBody, boolean isMyAdsView, String searchQuery) {
+        VBox adsContainer = new VBox(15);
+        adsContainer.setPadding(new Insets(20));
+        adsContainer.setStyle("-fx-background-color: #160f29;");
+
+        String headerText = isMyAdsView
+                ? "آگهی‌های ثبت شده شما"
+                : (cachedIsFavoritesView ? "علاقه‌مندی‌های شما" : "آگهی‌های تازه دپارتمان");
+
+        Label lblHeader = new Label(headerText);
+        lblHeader.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 18px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+        adsContainer.getChildren().add(lblHeader);
+
+        int dataIndex = responseBody.indexOf("\"data\"");
+        String dataPart = dataIndex >= 0 ? responseBody.substring(dataIndex) : responseBody;
+
+        Pattern objectPattern = Pattern.compile("\\{([^}]+)\\}");
+        Matcher matcher = objectPattern.matcher(dataPart);
+
+        boolean anyAdFound = false;
+        while (matcher.find()) {
+            String adJson = matcher.group(1);
+            if (!adJson.contains("\"title\"")) {
+                continue;
+            }
+            anyAdFound = true;
+            adsContainer.getChildren().add(buildAdCard(adJson, isMyAdsView));
+        }
+
+        if (!anyAdFound) {
+            Label lblEmpty = new Label(cachedIsFavoritesView
+                    ? "هنوز آگهی‌ای را به علاقه‌مندی‌ها اضافه نکرده‌اید."
+                    : "آگهی‌ای برای نمایش وجود ندارد.");
+            lblEmpty.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
+            adsContainer.getChildren().add(lblEmpty);
+        }
+
+        ScrollPane scrollPane = new ScrollPane(adsContainer);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+        mainBorderPane.setCenter(scrollPane);
+    }
+
+    private Node buildAdCard(String adJson, boolean isMyAdsView) {
+        String title = extractJsonField(adJson, "title");
+        String description = extractJsonField(adJson, "description");
+        String city = extractJsonField(adJson, "city");
+        String category = extractJsonField(adJson, "category");
+        String rawPrice = extractJsonField(adJson, "price");
+        String owner = extractJsonField(adJson, "ownerUsername");
+        String imageUrl = extractJsonField(adJson, "imageUrl");
+        String adIdStr = extractJsonField(adJson, "id");
+        String adStatus = extractJsonField(adJson, "status");
+
+        long adId;
+        try {
+            adId = Long.parseLong(adIdStr);
+        } catch (NumberFormatException e) {
+            adId = -1;
+        }
+        final long finalAdId = adId;
+
+        HBox card = new HBox(15);
+        card.setPadding(new Insets(12));
+        card.setAlignment(Pos.CENTER_RIGHT);
+        card.setCursor(Cursor.HAND);
+        card.setStyle("-fx-background-color: #241942; -fx-background-radius: 12; -fx-border-color: #3b286b; -fx-border-radius: 12;");
+
+        // 🖼️ تصویر آگهی (اولین تصویر در حالت چندتصویری)
+        ImageView imageView = new ImageView();
+        imageView.setFitWidth(120);
+        imageView.setFitHeight(90);
+        imageView.setPreserveRatio(false);
+        if (imageUrl != null && !imageUrl.isBlank() && !"مشخص نشده".equals(imageUrl)) {
+            String firstImage = imageUrl.split(",")[0].trim();
             try {
-                String newTitle = txtTitle.getText().trim();
-                String newDesc = txtDesc.getText().trim();
-                String newPriceStr = txtPrice.getText().trim();
-
-                if (newTitle.isEmpty() || newDesc.isEmpty() || newPriceStr.isEmpty()) {
-                    showErrorAlert("خطا", "فیلدها نمی‌توانند خالی بمانند.");
-                    return;
-                }
-
-                new java.math.BigDecimal(newPriceStr);
-
-                // 🚀 ۴. ارسال لیست تصاویر به متد مالتی‌پارت در صورت انتخاب عکس‌های جدید
-                if (!selectedNewImageFiles.isEmpty()) {
-                    System.out.println("📤 در حال آپلود تصاویر جدید ویرایش شده...");
-                    HttpService.uploadMultipleFiles("/api/upload", selectedNewImageFiles)
-                            .thenAccept(uploadResponse -> {
-                                if (uploadResponse.statusCode() == 200 || uploadResponse.statusCode() == 201) {
-                                    String newUploadedUrls = extractImageUrlFromJson(uploadResponse.body());
-                                    Platform.runLater(() -> {
-                                        onUpdateAdClick(adId, newTitle, newDesc, newPriceStr, newUploadedUrls);
-                                    });
-                                } else {
-                                    Platform.runLater(() -> showErrorAlert("خطای آپلود", "آپلود تصاویر جدید با خطا مواجه شد."));
-                                }
-                            })
-                            .exceptionally(ex -> {
-                                Platform.runLater(() -> showErrorAlert("خطا", "ارتباط ناموفق با سرور برای آپلود: " + ex.getMessage()));
-                                return null;
-                            });
-                } else {
-                    // سناریوی بدون تغییر عکس: همان لیست آدرس‌های رشته‌ای قبلی ارسال می‌شود
-                    onUpdateAdClick(adId, newTitle, newDesc, newPriceStr, currentImageUrl);
-                }
-
-            } catch (Exception ex) {
-                showErrorAlert("خطای ورودی", "لطفاً برای قیمت فقط عدد انگلیسی وارد کنید.");
+                imageView.setImage(new Image(BASE_URL + firstImage, true));
+            } catch (Exception ignored) {
             }
         }
+
+        VBox textContainer = new VBox(5);
+        HBox.setHgrow(textContainer, Priority.ALWAYS);
+
+        Label lblTitle = new Label(title);
+        lblTitle.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblDesc = new Label(description.length() > 80 ? description.substring(0, 80) + "..." : description);
+        lblDesc.setWrapText(true);
+        lblDesc.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+
+        Label lblCity = new Label("\ud83d\udccd " + city);
+        lblCity.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+
+        Label lblPrice = new Label("\ud83d\udcb0 " + rawPrice + " تومان");
+        lblPrice.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 13px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        textContainer.getChildren().addAll(lblTitle, lblDesc, lblCity, lblPrice);
+
+        // 🏷️ نمایش وضعیت آگهی در بخش «آگهی‌های من»
+        if (isMyAdsView) {
+            Label lblStatus = new Label(statusToPersian(adStatus));
+            lblStatus.setStyle("-fx-text-fill: " + statusToColor(adStatus)
+                    + "; -fx-font-size: 12px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+            textContainer.getChildren().add(0, lblStatus);
+        }
+
+        // دکمه‌های عملیات
+        if (isMyAdsView) {
+            HBox actionsBox = new HBox(8);
+            actionsBox.setAlignment(Pos.CENTER_LEFT);
+
+            Button btnEdit = new Button("\u270f\ufe0f ویرایش");
+            btnEdit.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnEdit.setOnMouseClicked(Event::consume);
+            btnEdit.setOnAction(e -> openEditAdPage(finalAdId, title, description, rawPrice, city, category, imageUrl));
+
+            Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
+            btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnDelete.setOnMouseClicked(Event::consume);
+            btnDelete.setOnAction(e -> {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "این آگهی حذف شود؟", ButtonType.YES, ButtonType.NO);
+                confirm.showAndWait().ifPresent(bt -> {
+                    if (bt == ButtonType.YES) {
+                        deleteAd(finalAdId);
+                    }
+                });
+            });
+
+            actionsBox.getChildren().addAll(btnEdit, btnDelete);
+
+            // ✅ دکمه فروخته شد (فقط وقتی هنوز فروخته نشده)
+            if (!"SOLD".equalsIgnoreCase(adStatus)) {
+                Button btnSold = new Button("\u2705 فروخته شد");
+                btnSold.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                btnSold.setOnMouseClicked(Event::consume);
+                btnSold.setOnAction(e -> {
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                            "آگهی به وضعیت «فروخته شده» تغییر کند؟", ButtonType.YES, ButtonType.NO);
+                    confirm.showAndWait().ifPresent(bt -> {
+                        if (bt == ButtonType.YES) {
+                            markAdAsSold(finalAdId);
+                        }
+                    });
+                });
+                actionsBox.getChildren().add(btnSold);
+            }
+
+            textContainer.getChildren().add(actionsBox);
+        } else {
+            // ⭐ دکمه علاقه‌مندی برای آگهی دیگران
+            HBox actionsBox = new HBox(8);
+            actionsBox.setAlignment(Pos.CENTER_LEFT);
+
+            Button btnFav = new Button(cachedIsFavoritesView
+                    ? "\ud83d\udc94 حذف از علاقه‌مندی‌ها"
+                    : "\u2b50 افزودن به علاقه‌مندی‌ها");
+            btnFav.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnFav.setOnMouseClicked(Event::consume);
+            btnFav.setOnAction(e -> toggleFavorite(finalAdId));
+
+            actionsBox.getChildren().add(btnFav);
+            textContainer.getChildren().add(actionsBox);
+        }
+
+        card.getChildren().addAll(imageView, textContainer);
+
+        card.setOnMouseClicked(e ->
+                openAdDetailsPage(finalAdId, title, description, rawPrice, owner, imageUrl));
+
+        return card;
     }
     private String extractImageUrlFromJson(String json) {
         try {
@@ -733,119 +700,310 @@ public class HelloController {
         }
     }
 
-    private String escapeJson(String input) {
-        if (input == null) return "";
-        return input.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "");
-    }
-
-    private String extractJsonField(String source, String key) {
-        Pattern pString = Pattern.compile("\"" + key + "\"\\s*:\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"");
-        Matcher mString = pString.matcher(source);
-        if (mString.find()) {
-            return mString.group(1).trim()
-                    .replace("\\\"", "\"")
-                    .replace("\\n", "\n")
-                    .replace("\\\\", "\\");
-        }
-        Pattern pNumeric = Pattern.compile("\"" + key + "\"\\s*:\\s*([^,\\s}]+)");
-        Matcher mNumeric = pNumeric.matcher(source);
-        if (mNumeric.find()) {
-            return mNumeric.group(1).trim();
-        }
-        return "مشخص نشده";
-    }
-
-    @FXML
-    private void onRegisterAdScreenClick() {
-        try {
-            System.out.println("🔄 در حال بارگذاری فرم ثبت آگهی جدید...");
-
-            // ✅ اصلاح نام فایل به register-ad-view.fxml به صورت آدرس‌دهی نسبی
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("register-ad-view.fxml"));
-
-            VBox registerLayout = loader.load();
-
-            RegisterAdController controller = loader.getController();
-            controller.setHelloController(this);
-
-            mainBorderPane.setCenter(registerLayout);
-
-            System.out.println("✅ فرم ثبت آگهی با موفقیت تزریق و فعال شد.");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("❌ خطا در بارگذاری صفحه ثبت آگهی: " + e.getMessage());
-            showErrorAlert("خطای بارگذاری", "امکان باز کردن فرم ثبت آگهی وجود ندارد.");
+    private String statusToPersian(String status) {
+        if (status == null) return "";
+        switch (status.toUpperCase()) {
+            case "PENDING":
+                return "\ud83d\udd52 در انتظار تایید مدیر";
+            case "ACTIVE":
+                return "\ud83d\udfe2 فعال";
+            case "REJECTED":
+                return "\u274c رد شده";
+            case "SOLD":
+                return "\u2705 فروخته شده";
+            default:
+                return status;
         }
     }
 
-    @FXML
-    private void onLoadMyAdsClick() {
+    private String statusToColor(String status) {
+        if (status == null) return "#b9a6df";
+        switch (status.toUpperCase()) {
+            case "PENDING":
+                return "#ffc83b";
+            case "ACTIVE":
+                return "#6fdd8b";
+            case "REJECTED":
+                return "#ff6b6b";
+            case "SOLD":
+                return "#9e9e9e";
+            default:
+                return "#b9a6df";
+        }
+    }
+
+    // ---------------------------------------------------------- ویرایش و حذف آگهی
+
+    private void openEditAdPage(long adId, String title, String description, String price, String city, String category, String currentImageUrl) {
+        VBox editBox = new VBox(12);
+        editBox.setPadding(new Insets(25));
+        editBox.setStyle("-fx-background-color: #160f29;");
+
+        Label lblHeader = new Label("\u270f\ufe0f ویرایش آگهی");
+        lblHeader.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblHint = new Label("پس از ویرایش، آگهی دوباره برای ��ازبینی به مدیر ارسال می‌شود.");
+        lblHint.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+
+        String inputStyle = "-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';";
+        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';";
+
+        Label lblFieldTitle = new Label("عنوان:");
+        lblFieldTitle.setStyle(labelStyle);
+        TextField txtTitle = new TextField(title);
+        txtTitle.setStyle(inputStyle);
+
+        Label lblFieldDesc = new Label("توضیحات:");
+        lblFieldDesc.setStyle(labelStyle);
+        TextArea txtDesc = new TextArea(description);
+        txtDesc.setPrefRowCount(4);
+        // ⚠️ برای TextArea باید -fx-control-inner-background هم ست شود، وگرنه ناحیه متن سفید می‌ماند
+        txtDesc.setStyle(inputStyle + " -fx-control-inner-background: #241942; -fx-highlight-fill: #3b286b; -fx-highlight-text-fill: white;");
+
+        Label lblFieldPrice = new Label("قیمت (تومان):");
+        lblFieldPrice.setStyle(labelStyle);
+        TextField txtPrice = new TextField(price);
+        txtPrice.setStyle(inputStyle);
+
+        Label lblFieldCity = new Label("شهر:");
+        lblFieldCity.setStyle(labelStyle);
+        ComboBox<String> cmbCity = new ComboBox<>();
+        cmbCity.getItems().addAll("تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت");
+        if (city != null && !city.isBlank() && !cmbCity.getItems().contains(city)) {
+            cmbCity.getItems().add(city);
+        }
+        cmbCity.setValue(city);
+
+        Label lblFieldCategory = new Label("دسته‌بندی:");
+        lblFieldCategory.setStyle(labelStyle);
+        ComboBox<String> cmbCategory = new ComboBox<>();
+        cmbCategory.getItems().addAll("کالای دیجیتال", "وسایل نقلیه", "املاک", "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات");
+        if (category != null && !category.isBlank() && !"مشخص نشده".equals(category) && !cmbCategory.getItems().contains(category)) {
+            cmbCategory.getItems().add(category);
+        }
+        if (category != null && !"مشخص نشده".equals(category)) {
+            cmbCategory.setValue(category);
+        }
+
+        // 🖼️ مدیریت تک‌به‌تک عکس‌ها: پیش‌نمایش هر عکس + دکمه حذف زیر همان عکس
+        Label lblImagesTitle = new Label("عکس‌های آگهی (برای حذف هر عکس، دکمه حذف زیر همان عکس را بزنید):");
+        lblImagesTitle.setStyle(labelStyle);
+
+        List<String> keptImageUrls = new ArrayList<>();
+        if (currentImageUrl != null && !currentImageUrl.isBlank() && !"مشخص نشده".equals(currentImageUrl)) {
+            for (String part : currentImageUrl.split(",")) {
+                String src = part.trim();
+                if (!src.isEmpty()) keptImageUrls.add(src);
+            }
+        }
+        List<File> newImageFiles = new ArrayList<>();
+
+        FlowPane thumbsPane = new FlowPane(10, 10);
+        thumbsPane.setPadding(new Insets(5));
+
+        final Runnable[] renderThumbs = new Runnable[1];
+        renderThumbs[0] = () -> {
+            thumbsPane.getChildren().clear();
+            for (String src : new ArrayList<>(keptImageUrls)) {
+                thumbsPane.getChildren().add(buildImageThumb(new Image(BASE_URL + src, 140, 100, false, true, true), "فعلی", () -> {
+                    keptImageUrls.remove(src);
+                    renderThumbs[0].run();
+                }));
+            }
+            for (File f : new ArrayList<>(newImageFiles)) {
+                thumbsPane.getChildren().add(buildImageThumb(new Image(f.toURI().toString(), 140, 100, false, true, true), "جدید", () -> {
+                    newImageFiles.remove(f);
+                    renderThumbs[0].run();
+                }));
+            }
+            if (thumbsPane.getChildren().isEmpty()) {
+                Label lblEmpty = new Label("این آگهی فعلاً هیچ عکسی ندارد.");
+                lblEmpty.setStyle(labelStyle);
+                thumbsPane.getChildren().add(lblEmpty);
+            }
+        };
+        renderThumbs[0].run();
+
+        Button btnAddImages = new Button("🖼️ افزودن عکس (چندانتخابی با Ctrl)");
+        btnAddImages.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnAddImages.setOnAction(ev -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("افزودن عکس به آگهی");
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("تصاویر", "*.png", "*.jpg", "*.jpeg"));
+            List<File> files = chooser.showOpenMultipleDialog(mainBorderPane.getScene().getWindow());
+            if (files != null && !files.isEmpty()) {
+                newImageFiles.addAll(files);
+                renderThumbs[0].run();
+            }
+        });
+
+        Button btnSave = new Button("💾 ذخیره تغییرات");
+        btnSave.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnSave.setOnAction(ev -> {
+            try {
+                Double.parseDouble(txtPrice.getText().trim());
+            } catch (NumberFormatException nfe) {
+                showErrorAlert("لطفاً برای قیمت فقط عدد انگلیسی وارد کنید.");
+                return;
+            }
+            String cityValue = cmbCity.getValue() == null ? "" : cmbCity.getValue();
+            String categoryValue = cmbCategory.getValue() == null ? "" : cmbCategory.getValue();
+            if (!newImageFiles.isEmpty()) {
+                // اول عکس‌های جدید آپلود می‌شوند، بعد کنار عکس‌های باقی‌مانده ذخیره می‌شوند
+                uploadEditImages(newImageFiles)
+                        .thenAccept(joinedUrls -> Platform.runLater(() -> {
+                            List<String> allUrls = new ArrayList<>(keptImageUrls);
+                            for (String p : joinedUrls.split(",")) {
+                                String src = p.trim();
+                                if (!src.isEmpty()) allUrls.add(src);
+                            }
+                            sendEditRequest(adId, txtTitle.getText(), txtDesc.getText(), txtPrice.getText(), cityValue, categoryValue, String.join(",", allUrls), true);
+                        }))
+                        .exceptionally(ex -> {
+                            Platform.runLater(() -> showErrorAlert("آپلود عکس‌های جدید با خطا مواجه شد: "
+                                    + (ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage())));
+                            return null;
+                        });
+            } else {
+                // فقط عکس‌های باقی‌مانده ذخیره می‌شوند (اگر همه حذف شده باشند، آگهی بدون عکس می‌شود)
+                sendEditRequest(adId, txtTitle.getText(), txtDesc.getText(), txtPrice.getText(), cityValue, categoryValue, String.join(",", keptImageUrls), true);
+            }
+        });
+
+        Button btnBack = new Button("❌ انصراف");
+        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnBack.setOnAction(e -> onLoadMyAdsClick());
+
+        HBox actionRow = new HBox(10, btnSave, btnBack);
+        actionRow.setAlignment(Pos.CENTER_RIGHT);
+
+        editBox.getChildren().addAll(lblHeader, lblHint,
+                lblFieldTitle, txtTitle,
+                lblFieldDesc, txtDesc,
+                lblFieldPrice, txtPrice,
+                lblFieldCity, cmbCity,
+                lblFieldCategory, cmbCategory,
+                lblImagesTitle, btnAddImages, thumbsPane,
+                actionRow);
+
+        ScrollPane scrollPane = new ScrollPane(editBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+        mainBorderPane.setCenter(scrollPane);
+    }
+
+    /** 🖼️ ساخت پیش‌نمایش کوچک عکس با برچسب و دکمه حذف ت��ی. */
+    private VBox buildImageThumb(Image image, String tag, Runnable onRemove) {
+        ImageView iv = new ImageView(image);
+        iv.setFitWidth(140);
+        iv.setFitHeight(100);
+        iv.setPreserveRatio(false);
+
+        Label lblTag = new Label(tag);
+        lblTag.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
+
+        Button btnRemove = new Button("🗑️ حذف");
+        btnRemove.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
+        btnRemove.setOnAction(e -> onRemove.run());
+
+        VBox box = new VBox(5, iv, lblTag, btnRemove);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(8));
+        box.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 10; -fx-background-radius: 10;");
+        return box;
+    }
+
+    /** 📤 ارسال درخواست ویرایش آگهی؛ اگر includeImage=false باشد عکس‌ها دست‌نخورده می‌مانند. */
+    private void sendEditRequest(long adId, String title, String description, String price, String city, String category, String imageUrl, boolean includeImage) {
+        StringBuilder body = new StringBuilder("{");
+        body.append("\"title\":\"").append(escapeJson(title)).append("\",");
+        body.append("\"description\":\"").append(escapeJson(description)).append("\",");
+        body.append("\"price\":\"").append(escapeJson(price)).append("\",");
+        body.append("\"city\":\"").append(escapeJson(city)).append("\"");
+        if (category != null && !category.isBlank()) {
+            body.append(",\"category\":\"").append(escapeJson(category)).append("\"");
+        }
+        if (includeImage) {
+            String safe = imageUrl == null ? "" : escapeJson(imageUrl);
+            body.append(",\"image_url\":\"").append(safe).append("\"");
+            body.append(",\"imageUrl\":\"").append(safe).append("\"");
+        }
+        body.append("}");
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/advertisements/my"))
+                .uri(URI.create(BASE_URL + "/api/advertisements/" + adId))
                 .header("Authorization", "Bearer " + MainApplication.jwtToken)
-                .GET()
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
                 .build();
 
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (handleUnauthorized(response.statusCode())) return;
-
-                    Platform.runLater(() -> {
-                        if (response.statusCode() == 200) {
-                            cachedAdsJson = response.body();
-                            cachedIsMyAdsView = true;
-                            renderAdvertisements(cachedAdsJson, true, "");
-                            showSuccessAlert("بارگذاری موفق", "آگهی‌های شما با موفقیت دریافت شد.");
-                        } else {
-                            showErrorAlert("خطا", "عدم امکان بارگذاری آگهی‌ها. کد: " + response.statusCode());
-                        }
-                    });
-                })
-                .exceptionally(this::handleNetworkException);
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        showSuccessAlert("آگهی ویرایش شد و برای بازبینی مجدد به مدیر ارسال گردید.");
+                        onLoadMyAdsClick();
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
     }
 
-    private void onUpdateAdClick(Long adId, String title, String description, String price, String imageUrl) {
+    /** 📡 آپلود چند عکس برای ویرایش آگهی در یک درخواست Multipart (کلید files). */
+    private CompletableFuture<String> uploadEditImages(List<File> files) {
+        CompletableFuture<String> future = new CompletableFuture<>();
         try {
-            System.out.println("🔄 در حال ارسال درخواست ویرایش آگهی به سرور...");
-
-            // ساخت JSON بادی به صورت دستی و ایمن
-            String jsonBody = String.format(
-                    "{\"id\":%d,\"title\":\"%s\",\"description\":\"%s\",\"price\":%s,\"imageUrl\":\"%s\"}",
-                    adId, title, description, price, imageUrl
-            );
+            String boundary = "JavaFX-Boundary-" + UUID.randomUUID();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            for (File file : files) {
+                String mimeType = "image/jpeg";
+                try {
+                    String probed = Files.probeContentType(file.toPath());
+                    if (probed != null) mimeType = probed;
+                } catch (IOException ignored) {
+                }
+                String header = "--" + boundary + "\r\n"
+                        + "Content-Disposition: form-data; name=\"files\"; filename=\"" + file.getName() + "\"\r\n"
+                        + "Content-Type: " + mimeType + "\r\n\r\n";
+                out.write(header.getBytes(StandardCharsets.UTF_8));
+                out.write(Files.readAllBytes(file.toPath()));
+                out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+            }
+            out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/api/advertisements/" + adId))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + MainApplication.jwtToken) // 🔑 ارسال توکن تازه
-                    .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .uri(URI.create(BASE_URL + "/upload"))
+                    .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                    .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(out.toByteArray()))
                     .build();
 
             client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .thenAccept(response -> {
-                        Platform.runLater(() -> {
-                            if (response.statusCode() == 200 || response.statusCode() == 204) {
-                                showHomeScreen(); // 🔄 رفرش آنی صفحه اصلی برای نمایش اطلاعات جدید
-                                System.out.println("✅ آگهی با موفقیت ویرایش و به روزرسانی شد.");
+                        if (response.statusCode() == 200 || response.statusCode() == 201) {
+                            String joined = extractJsonField(response.body(), "image_url");
+                            if (joined != null && !joined.isBlank() && !"مشخص نشده".equals(joined)) {
+                                future.complete(joined);
                             } else {
-                                showErrorAlert("خطای ویرایش", "سرور درخواست ویرایش را نپذیرفت. کد: " + response.statusCode());
+                                future.completeExceptionally(new RuntimeException("آدرس تصویر در پاسخ سرور یافت نشد."));
                             }
-                        });
+                        } else {
+                            future.completeExceptionally(new RuntimeException("کد وضعیت سرور: " + response.statusCode()));
+                        }
                     })
                     .exceptionally(ex -> {
-                        Platform.runLater(() -> showErrorAlert("خطای شبکه", "ارتباط با سرور برقرار نشد: " + ex.getMessage()));
+                        future.completeExceptionally(ex);
                         return null;
                     });
-
         } catch (Exception e) {
-            e.printStackTrace();
+            future.completeExceptionally(e);
         }
+        return future;
     }
-    private void onDeleteAdClick(Long adId) {
+
+    private void deleteAd(long adId) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/advertisements/" + adId))
                 .header("Authorization", "Bearer " + MainApplication.jwtToken)
@@ -853,63 +1011,418 @@ public class HelloController {
                 .build();
 
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
+                .thenAccept(response -> Platform.runLater(() -> {
                     checkAndRefreshToken(response);
-                    if (handleUnauthorized(response.statusCode())) return;
-
-                    Platform.runLater(() -> {
-                        if (response.statusCode() == 200) {
-                            showSuccessAlert("حذف موفق", "آگهی مورد نظر با موفقیت حذف شد.");
-                            showHomeScreen();
-                        } else if (response.statusCode() == 403) {
-                            showErrorAlert("خطای دسترسی", "شما اجازه حذف این آگهی را ندارید!");
-                        } else {
-                            showErrorAlert("خطا", "حذف آگهی با خطا مواجه شد. کد: " + response.statusCode());
-                        }
-                    });
-                })
-                .exceptionally(this::handleNetworkException);
+                    if (response.statusCode() == 200) {
+                        showSuccessAlert("آگهی با موفقیت حذف شد.");
+                        onLoadMyAdsClick();
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
     }
 
-    private void checkAndRefreshToken(HttpResponse<?> response) {
-        response.headers().firstValue("Authorization").ifPresent(authHeader -> {
-            if (authHeader.startsWith("Bearer ")) {
-                String newToken = authHeader.substring(7);
-                MainApplication.jwtToken = newToken;
-                System.out.println("🔄 [JavaFX] توکن تازه‌نفس دریافت و تمدید شد.");
+    private String escapeJson(String value) {
+        if (value == null) return "";
+        return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
+    }
+
+    // ---------------------------------------------------------- صفحه جزئیات آگهی
+
+    private void openAdDetailsPage(long adId, String title, String description,
+                                   String rawPrice, String owner, String imageUrl) {
+        VBox detailsBox = new VBox(15);
+        detailsBox.setPadding(new Insets(25));
+        detailsBox.setStyle("-fx-background-color: #160f29;");
+
+        Button btnBack = new Button("\u2b05 بازگشت");
+        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnBack.setOnAction(e -> renderAdvertisements(cachedAdsJson, cachedIsMyAdsView, ""));
+
+        // 🖼️ گالری تصاویر (امتیازی: چند تصویر + جابجایی بین عکس‌ها با دکمه‌های قبلی/بعدی)
+        VBox gallery = new VBox(8);
+        gallery.setAlignment(Pos.CENTER);
+        List<String> imageSources = new ArrayList<>();
+        if (imageUrl != null && !imageUrl.isBlank() && !"مشخص نشده".equals(imageUrl)) {
+            for (String part : imageUrl.split(",")) {
+                String src = part.trim();
+                if (!src.isEmpty()) imageSources.add(src);
             }
+        }
+        if (!imageSources.isEmpty()) {
+            ImageView imageViewGallery = new ImageView();
+            imageViewGallery.setFitWidth(420);
+            imageViewGallery.setFitHeight(280);
+            imageViewGallery.setPreserveRatio(true);
+
+            Label lblCounter = new Label();
+            lblCounter.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+            final int[] currentIndex = {0};
+            Runnable showCurrentImage = () -> {
+                try {
+                    imageViewGallery.setImage(new Image(BASE_URL + imageSources.get(currentIndex[0]), true));
+                } catch (Exception ignored) {
+                }
+                lblCounter.setText((currentIndex[0] + 1) + " / " + imageSources.size());
+            };
+            showCurrentImage.run();
+
+            String navBtnStyle = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';";
+
+            Button btnPrevImage = new Button("قبلی ▶");
+            btnPrevImage.setStyle(navBtnStyle);
+            btnPrevImage.setOnAction(e -> {
+                currentIndex[0] = (currentIndex[0] - 1 + imageSources.size()) % imageSources.size();
+                showCurrentImage.run();
+            });
+
+            Button btnNextImage = new Button("◀ بعدی");
+            btnNextImage.setStyle(navBtnStyle);
+            btnNextImage.setOnAction(e -> {
+                currentIndex[0] = (currentIndex[0] + 1) % imageSources.size();
+                showCurrentImage.run();
+            });
+
+            gallery.getChildren().add(imageViewGallery);
+
+            // دکمه‌های جابجایی فقط وقتی بیش از یک عکس وجود دارد
+            if (imageSources.size() > 1) {
+                HBox navRow = new HBox(15, btnNextImage, lblCounter, btnPrevImage);
+                navRow.setAlignment(Pos.CENTER);
+                gallery.getChildren().add(navRow);
+            }
+        }
+
+        Label lblTitle = new Label(title);
+        lblTitle.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblPrice = new Label("\ud83d\udcb0 قیمت: " + rawPrice + " تومان");
+        lblPrice.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblOwner = new Label("\ud83d\udc64 فروشنده: " + owner);
+        lblOwner.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        // ⭐ امتیاز فروشنده
+        Label lblRating = new Label("\u2b50 امتیاز فروشنده: در حال دریافت...");
+        lblRating.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+        loadSellerRating(adId, lblRating);
+
+        Separator separator = new Separator();
+
+        Label lblDescTitle = new Label("\ud83d\udcdd توضیحات:");
+        lblDescTitle.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblDesc = new Label(description);
+        lblDesc.setWrapText(true);
+        lblDesc.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        boolean isOwnAd = owner != null && owner.equals(MainApplication.currentUsername);
+
+        HBox actionRow = new HBox(10);
+        actionRow.setAlignment(Pos.CENTER_RIGHT);
+
+        if (!isOwnAd) {
+            Button btnStartChat = new Button("\ud83d\udcac گفتگو با فروشنده");
+            btnStartChat.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnStartChat.setOnAction(e -> openChatWithUser(adId, owner, title));
+
+            Button btnRate = new Button("\u2b50 ثبت امتیاز به فروشنده");
+            btnRate.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnRate.setOnAction(e -> openRatingDialog(adId, lblRating));
+
+            actionRow.getChildren().addAll(btnStartChat, btnRate);
+        }
+
+        detailsBox.getChildren().addAll(btnBack, gallery, lblTitle, lblPrice, lblOwner,
+                lblRating, separator, lblDescTitle, lblDesc, actionRow);
+
+        ScrollPane scrollPane = new ScrollPane(detailsBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+        mainBorderPane.setCenter(scrollPane);
+    }
+
+    // ---------------------------------------------------------- ⭐ امتیاز فروشنده
+
+    private void loadSellerRating(long adId, Label target) {
+        client.sendAsync(authorizedGet(BASE_URL + "/api/ratings/ad/" + adId), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.statusCode() == 200) {
+                        String average = extractJsonField(response.body(), "average");
+                        String count = extractJsonField(response.body(), "count");
+                        if ("0".equals(count) || "مشخص نشده".equals(count)) {
+                            target.setText("\u2b50 امتیاز فروشنده: بدون امتیاز");
+                        } else {
+                            target.setText("\u2b50 امتیاز فرو��نده: " + average + " (از " + count + " رای)");
+                        }
+                    } else {
+                        target.setText("\u2b50 امتیاز فروشنده: نامشخص");
+                    }
+                }));
+    }
+
+    private void openRatingDialog(long adId, Label ratingLabel) {
+        ChoiceDialog<Integer> dialog = new ChoiceDialog<>(5, List.of(1, 2, 3, 4, 5));
+        dialog.setTitle("ثبت امتیاز");
+        dialog.setHeaderText("امتیاز شما به فروشنده (۱ تا ۵):");
+        dialog.setContentText("امتیاز:");
+
+        dialog.showAndWait().ifPresent(score -> {
+            String body = "{\"adId\":" + adId + ",\"score\":" + score + "}";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/api/ratings"))
+                    .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> Platform.runLater(() -> {
+                        checkAndRefreshToken(response);
+                        if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                            showSuccessAlert("امتیاز شما با موفقیت ثبت شد.");
+                            loadSellerRating(adId, ratingLabel);
+                        } else if (response.statusCode() == 401) {
+                            handleUnauthorized(response.statusCode());
+                        } else {
+                            showErrorAlert(extractJsonField(response.body(), "message"));
+                        }
+                    }));
         });
     }
 
-    private boolean handleUnauthorized(int statusCode) {
-        if (statusCode == 401) {
-            Platform.runLater(() -> {
-                Stage currentStage = (Stage) myDivarButton.getScene().getWindow();
-                MainApplication.redirectToLogin(currentStage, "نشست شما به پایان رسیده است. لطفاً مجدداً وارد شوید.");
-            });
-            return true;
+    // ---------------------------------------------------------- 💬 چت
+
+    private void openChatWithUser(long adId, String sellerUsername, String adTitle) {
+        String body = "{\"adId\":" + adId + "}";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/chat/start"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        String convIdStr = extractJsonField(response.body(), "conversationId");
+                        try {
+                            openChatPane(Long.parseLong(convIdStr), sellerUsername, adTitle);
+                        } catch (NumberFormatException e) {
+                            showErrorAlert("خطا در شروع گفتگو.");
+                        }
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
+
+    private void openChatPane(long conversationId, String otherUser, String adTitle) {
+        setActiveTopBarSection("chat");
+        VBox messagesBox = new VBox(8);
+        messagesBox.setPadding(new Insets(15));
+        messagesBox.setStyle("-fx-background-color: #160f29;");
+
+        ScrollPane scroll = new ScrollPane(messagesBox);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+
+        Label lblHeader = new Label("\ud83d\udcac گفتگو با " + otherUser + " — " + adTitle);
+        lblHeader.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 15px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Button btnBack = new Button("\u2b05 لیست گفتگوها");
+        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnBack.setOnAction(e -> onChatScreenClick());
+
+        Button btnHome = new Button("\ud83c\udfe0 صفحه اصلی");
+        btnHome.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnHome.setOnAction(e -> showHomeScreen());
+
+        Button btnRefresh = new Button("\ud83d\udd04");
+        btnRefresh.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
+        btnRefresh.setOnAction(e -> loadChatMessages(conversationId, messagesBox));
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox header = new HBox(10, lblHeader, spacer, btnRefresh, btnHome, btnBack);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(15));
+        header.setStyle("-fx-background-color: #241942;");
+
+        TextField input = new TextField();
+        input.setPromptText("پیام خود را بنویسید...");
+        input.setStyle("-fx-background-color: #241942; -fx-text-fill: white; -fx-prompt-text-fill: #b9a6df; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';");
+        HBox.setHgrow(input, Priority.ALWAYS);
+
+        Button btnSend = new Button("\ud83d\udce4 ارسال");
+        btnSend.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+
+        Runnable sendAction = () -> {
+            String text = input.getText() == null ? "" : input.getText().trim();
+            if (text.isEmpty()) return;
+
+            String body = "{\"content\":\"" + escapeJson(text) + "\"}";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(BASE_URL + "/api/chat/conversations/" + conversationId + "/messages"))
+                    .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                    .build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenAccept(response -> Platform.runLater(() -> {
+                        checkAndRefreshToken(response);
+                        if (response.statusCode() == 200) {
+                            input.clear();
+                            loadChatMessages(conversationId, messagesBox);
+                        } else if (response.statusCode() == 401) {
+                            handleUnauthorized(response.statusCode());
+                        } else {
+                            showErrorAlert(extractJsonField(response.body(), "message"));
+                        }
+                    }));
+        };
+
+        btnSend.setOnAction(e -> sendAction.run());
+        input.setOnAction(e -> sendAction.run());
+
+        HBox inputRow = new HBox(10, input, btnSend);
+        inputRow.setPadding(new Insets(15));
+        inputRow.setStyle("-fx-background-color: #241942;");
+
+        BorderPane chatRoot = new BorderPane();
+        chatRoot.setTop(header);
+        chatRoot.setCenter(scroll);
+        chatRoot.setBottom(inputRow);
+        chatRoot.setStyle("-fx-background-color: #160f29;");
+
+        mainBorderPane.setCenter(chatRoot);
+        loadChatMessages(conversationId, messagesBox);
+    }
+
+    private void loadChatMessages(long conversationId, VBox messagesBox) {
+        client.sendAsync(authorizedGet(BASE_URL + "/api/chat/conversations/" + conversationId + "/messages"),
+                        HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.statusCode() != 200) {
+                        return;
+                    }
+                    messagesBox.getChildren().clear();
+
+                    int dataIndex = response.body().indexOf("\"data\"");
+                    String dataPart = dataIndex >= 0 ? response.body().substring(dataIndex) : response.body();
+
+                    Matcher matcher = Pattern.compile("\\{([^}]+)\\}").matcher(dataPart);
+                    while (matcher.find()) {
+                        String msgJson = matcher.group(1);
+                        if (!msgJson.contains("\"content\"")) continue;
+
+                        String sender = extractJsonField(msgJson, "senderUsername");
+                        String content = extractJsonField(msgJson, "content");
+                        boolean mine = sender.equals(MainApplication.currentUsername);
+
+                        Label bubble = new Label(content);
+                        bubble.setWrapText(true);
+                        bubble.setMaxWidth(420);
+                        bubble.setPadding(new Insets(8, 12, 8, 12));
+                        // 💬 پیام من: سمت راست (بنفش) — پیام مخاطب: سمت چپ (طلایی)
+                        bubble.setStyle(mine
+                                ? "-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 12; -fx-font-family: 'Vazirmatn';"
+                                : "-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 12; -fx-font-family: 'Vazirmatn';");
+
+                        HBox row = new HBox(bubble);
+                        row.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+                        messagesBox.getChildren().add(row);
+                    }
+                }));
+    }
+
+    // ---------------------------------------------------------- 🛡️ پنل مدیریت و نقش کاربر
+
+    /**
+     * 🔑 استخراج نام کاربری واقعی از payload توکن JWT (claim «sub»)
+     */
+    private String extractUsernameFromToken() {
+        try {
+            String token = MainApplication.jwtToken;
+            if (token == null || token.isBlank()) return "";
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) return "";
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+            Matcher matcher = Pattern.compile("\"sub\"\\s*:\\s*\"([^\"]+)\"").matcher(payload);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+            return "";
+        } catch (Exception e) {
+            return "";
         }
-        return false;
     }
 
-    private Void handleNetworkException(Throwable e) {
-        Platform.runLater(() -> showErrorAlert("خطا در اتصال", "خطا در ارتباط با سرور: " + e.getMessage()));
-        return null;
+    /**
+     * استخراج نقش کاربر از payload توکن JWT (claim «role»)
+     */
+    private String extractRoleFromToken() {
+        try {
+            String token = MainApplication.jwtToken;
+            if (token == null || token.isBlank()) return "";
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) return "";
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+            Matcher matcher = Pattern.compile("\"role\"\\s*:\\s*\"([^\"]+)\"").matcher(payload);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+            return payload.contains("ADMIN") ? "ADMIN" : "";
+        } catch (Exception e) {
+            return "";
+        }
     }
 
-    private void showSuccessAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
+    private void openAdminPanel() {
+        setActiveTopBarSection("myDivar");
+        mainBorderPane.setCenter(new AdminPanelController(this::showHomeScreen).createView());
     }
 
-    private void showErrorAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
+    // ---------------------------------------------------------- ثبت آگهی و خروج
+
+    @FXML
+    protected void onRegisterAdScreenClick() {
+        setActiveTopBarSection("register");
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("register-ad-view.fxml"));
+            Parent view = loader.load();
+            RegisterAdController registerController = loader.getController();
+            if (registerController != null) {
+                registerController.setHelloController(this);
+            }
+            mainBorderPane.setCenter(view);
+        } catch (Exception e) {
+            showErrorAlert("خطا در باز کردن صفحه ثبت آگهی.");
+        }
+    }
+
+    @FXML
+    protected void onLogoutClick() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/auth/logout"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    Stage stage = (Stage) mainBorderPane.getScene().getWindow();
+                    MainApplication.jwtToken = "";
+                    MainApplication.redirectToLogin(stage, "با موفقیت از حساب خارج شدید.");
+                }));
     }
 }

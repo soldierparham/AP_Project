@@ -10,9 +10,13 @@ import java.util.Optional;
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
 
-    // پیدا کردن گفتگوی خاص بین خریدار و فروشنده روی یک آگهی (برای جلوگیری از ثبت چت تکراری)
-    Optional<Conversation> findByAdvertisementIdAndBuyerUsernameAndSellerUsername(Long advertisementId, String buyerUsername, String sellerUsername);
+    // پیدا کردن گفتگوی خاص بین خریدار، فروشنده و آگهی (برای جلوگیری از تکراری شدن)
+    Optional<Conversation> findByAdvertisementIdAndBuyerUsernameAndSellerUsername(
+            Long advertisementId, String buyerUsername, String sellerUsername);
 
-    // واکشی تمام گفتگوهای یک کاربر (چه به عنوان خریدار و چه فروشنده)
+    // واکشی تمام گفتگوهای یک کاربر (چه به عنوان خریدار چه فروشنده)
     List<Conversation> findByBuyerUsernameOrSellerUsername(String buyerUsername, String sellerUsername);
+
+    // 🔧 جدید: پیدا کردن همه مکالمات یک آگهی (برای حذف cascade هنگام حذف آگهی)
+    List<Conversation> findByAdvertisementId(Long advertisementId);
 }

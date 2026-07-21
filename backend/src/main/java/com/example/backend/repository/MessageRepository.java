@@ -9,8 +9,11 @@ import java.util.List;
 public interface MessageRepository extends JpaRepository<Message, Long> {
 
     /**
-     * 🟢 دریافت تاریخچه پیام‌های یک گفتگوی خاص به ترتیب زمان ارسال
-     * این متد جایگزین متد قدیمی findChatHistory شده است.
+     * دریافت تاریخچه پیام‌های یک مکالمه بر اساس زمان ارسال
+     * این متد جایگزین قدیمی findChatHistory شده است.
      */
     List<Message> findByConversationIdOrderByTimestampAsc(Long conversationId);
+
+    // 🔧 جدید: حذف همه پیام‌های یک مکالمه (برای cascade delete هنگام حذف آگهی)
+    void deleteByConversationId(Long conversationId);
 }

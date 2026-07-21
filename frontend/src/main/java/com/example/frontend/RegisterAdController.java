@@ -1,11 +1,18 @@
 package com.example.frontend;
 
 import javafx.application.Platform;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -14,9 +21,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * 📝 کنترلر ثبت آگهی — نسخه تکمیل‌شده:
+ * 🖼️ پشتیبانی از انتخاب و آپلود چند عکس به صورت همزمان (گالری تصاویر — بخش امتیازی سند پروژه)
+ * آدرس عکس‌ها با کاما از هم جدا ذخیره می‌شوند (مثل /uploads/a.jpg,/uploads/b.jpg)
+ */
 public class RegisterAdController {
 
     @FXML
@@ -34,12 +48,12 @@ public class RegisterAdController {
     @FXML
     private ComboBox<String> categoryInput;
 
-    // 🖼️ فیلد جدید برای نمایش مسیر یا نام عکس انتخاب شده در رابط کاربری
+    // 🖼️ FlowPane نمایش thumbnail عکس‌های انتخاب‌شده
     @FXML
-    private Label imagePathLabel;
+    private FlowPane imageThumbsPane;
 
-    // متغیر محلی برای نگهداری فایل عکس انتخاب شده
-    private File selectedImageFile;
+    // 🖼️ لیست عکس‌های انتخاب‌شده (به جای تک‌فایل قبلی)
+    private final List<File> selectedImageFiles = new ArrayList<>();
 
     private HelloController helloController;
     private final HttpClient client = HttpClient.newHttpClient();
@@ -56,9 +70,7 @@ public class RegisterAdController {
                 "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات"
         );
 
-        if (imagePathLabel != null) {
-            imagePathLabel.setText("هیچ عکسی انتخاب نشده است.");
-        }
+        // thumbnails از onSelectImageClick بارگذاری می‌شوند
     }
 
     public void setHelloController(HelloController helloController) {
@@ -66,32 +78,66 @@ public class RegisterAdController {
     }
 
     /**
-     * 📸 ۱. باز کردن پنجره انتخاب فایل برای عکس آگهی
+     * 📸 ۱. باز کردن پنجره انتخاب چند فایل برای عکس‌های آگهی
+     * (با Ctrl یا Shift می‌توانید چند عکس را همزمان انتخاب کنید)
      */
     @FXML
     private void onSelectImageClick() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("انتخاب عکس آگهی");
-
-        // فقط فایل‌های تصویری مجاز باشند
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("تصاویر", "*.png", "*.jpg", "*.jpeg")
-        );
+        fileChooser.setTitle("افزودن عکس (چندانتخابی با Ctrl)");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("تصاویر", "*.png", "*.jpg", "*.jpeg"));
 
         Stage stage = (Stage) titleInput.getScene().getWindow();
-        File file = fileChooser.showOpenDialog(stage);
+        List<File> files = fileChooser.showOpenMultipleDialog(stage);
 
-        if (file != null) {
-            this.selectedImageFile = file;
-            if (imagePathLabel != null) {
-                imagePathLabel.setText("عکس انتخاب شد: " + file.getName());
-            }
-            System.out.println("🔍 [DEBUG] عکس انتخاب شده: " + file.getAbsolutePath());
+        if (files != null && !files.isEmpty()) {
+            selectedImageFiles.addAll(files); // add = تجمیعی است (مثل ویرایش)
+            renderImageThumbs();
+        }
+    }
+
+    /** 🖼️ نمایش thumbnail هر عکس انتخاب‌شده با دکمه حذف */
+    private void renderImageThumbs() {
+        if (imageThumbsPane == null) return;
+        imageThumbsPane.getChildren().clear();
+        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';";
+        String btnStyle = "-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
+        for (int i = 0; i < selectedImageFiles.size(); i++) {
+            final int idx = i;
+            File file = selectedImageFiles.get(i);
+            try {
+                Image img = new Image(file.toURI().toString(), 120, 90, true, true, false);
+                ImageView iv = new ImageView(img);
+                iv.setFitWidth(120);
+                iv.setFitHeight(90);
+                iv.setPreserveRatio(false);
+                iv.setStyle("-fx-effect: dropshadow(gaussian,rgba(0,0,0,0.4),4,0,0,2);");
+
+                Label lbl = new Label(file.getName().length() > 14 ? file.getName().substring(0,14)+"..." : file.getName());
+                lbl.setStyle(labelStyle);
+
+                Button btnDel = new Button("✖ حذف");
+                btnDel.setStyle(btnStyle);
+                btnDel.setOnAction(e -> {
+                    selectedImageFiles.remove(idx < selectedImageFiles.size() ? idx : selectedImageFiles.size()-1);
+                    renderImageThumbs();
+                });
+
+                VBox box = new VBox(5, iv, lbl, btnDel);
+                box.setAlignment(Pos.CENTER);
+                box.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
+                imageThumbsPane.getChildren().add(box);
+            } catch (Exception ignored) {}
+        }
+        if (selectedImageFiles.isEmpty()) {
+            Label lbl = new Label("🖼️ هیچ عکسی انتخاب نشده");
+            lbl.setStyle("-fx-text-fill: #8b7ca6; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+            imageThumbsPane.getChildren().add(lbl);
         }
     }
 
     /**
-     * 🚀 ۲. تأیید و ارسال اطلاعات به همراه عکس به سرور
+     * 🚀 ۲. تأیید و ارسال اطلاعات به همراه عکس‌ها به سرور
      */
     @FXML
     private void onSubmitAdClick() {
@@ -103,10 +149,7 @@ public class RegisterAdController {
 
         // 🚨 لاگ وضعیت برای خطایابی سریع
         System.out.println("====== 🔍 تست وضعیت دکمه ثبت ======");
-        System.out.println("📸 وضعیت فایل انتخابی: " + (selectedImageFile == null ? "NULL (خالی)" : selectedImageFile.getAbsolutePath()));
-        if (imagePathLabel != null) {
-            System.out.println("📝 متن لیبل عکس: " + imagePathLabel.getText());
-        }
+        System.out.println("📸 تعداد عکس‌های انتخابی: " + selectedImageFiles.size());
 
         // اعتبارسنجی اولیه فرم
         if (title.isEmpty() || priceText.isEmpty() || description.isEmpty() || selectedCity == null || selectedCategory == null) {
@@ -121,13 +164,18 @@ public class RegisterAdController {
             return;
         }
 
-        // 🔄 بررسی دقیق‌تر وضعیت عکس
-        if (selectedImageFile != null && selectedImageFile.exists()) {
-            System.out.println("🚀 [OK] فایل پیدا شد. شروع فرآیند آپلود ناهمگام...");
+        // 🔄 آپلود چند عکس به صورت همزمان در یک درخواست
+        List<File> validFiles = new ArrayList<>();
+        for (File f : selectedImageFiles) {
+            if (f != null && f.exists()) validFiles.add(f);
+        }
 
-            uploadImageAsync(selectedImageFile)
+        if (!validFiles.isEmpty()) {
+            System.out.println("🚀 [OK] " + validFiles.size() + " فایل پیدا شد. شروع فرآیند آپلود ناهمگام...");
+
+            uploadImagesAsync(validFiles)
                     .thenAccept(imageUrl -> {
-                        System.out.println("💾 [SUCCESS] دریافت آدرس از سرور: " + imageUrl);
+                        System.out.println("💾 [SUCCESS] دریافت آدرس(ها) از سرور: " + imageUrl);
                         submitAdvertisement(title, priceText, description, selectedCity, selectedCategory, imageUrl);
                     })
                     .exceptionally(ex -> {
@@ -135,24 +183,25 @@ public class RegisterAdController {
                             Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                             System.err.println("❌ خطا در جریان آپلود: " + cause.getMessage());
                             showAlert(Alert.AlertType.ERROR, "خطای آپلود تصویر",
-                                    "آپلود عکس با خطا مواجه شد.\nجزئیات: " + cause.getMessage());
+                                    "آپلود عکس(ها) با خطا مواجه شد.\nجزئیات: " + cause.getMessage());
                         });
                         return null;
                     });
         } else {
-            System.out.println("⚠️ [WARNING] برنامه‌ فایلی پیدا نکرد یا selectedImageFile نال است. ارسال بدون عکس...");
+            System.out.println("⚠️ [WARNING] هیچ عکسی انتخاب نشده یا فایل‌ها موجود نیستند. ارسال بدون عکس...");
             submitAdvertisement(title, priceText, description, selectedCity, selectedCategory, null);
         }
     }
 
     /**
-     * 📡 ۳. متد کمکی برای ارسال ناهمگام فایل تصویر (Multipart Request)
+     * 📡 ۳. ارسال ناهمگام چند فایل تصویر در یک درخواست Multipart
+     * (هر فایل با کلید "files" ارسال می‌شود — بک‌اند هر دو کلید file و files را می‌پذیرد)
      */
-    private CompletableFuture<String> uploadImageAsync(File file) {
+    private CompletableFuture<String> uploadImagesAsync(List<File> files) {
         CompletableFuture<String> future = new CompletableFuture<>();
         try {
-            String boundary = "JavaFX-Boundary-" + UUID.randomUUID().toString();
-            byte[] multipartBody = createMultipartBody(file, boundary);
+            String boundary = "JavaFX-Boundary-" + UUID.randomUUID();
+            byte[] multipartBody = createMultipartBody(files, boundary);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(HelloController.BASE_URL + "/upload"))
@@ -167,10 +216,9 @@ public class RegisterAdController {
                         System.out.println("📥 [DEBUG] پاسخ خام سرور بعد از آپلود عکس: " + responseBody);
 
                         if (response.statusCode() == 200 || response.statusCode() == 201) {
-                            // استخراج منعطف آدرس عکس از پاسخ جیسون
                             String imageUrl = extractImageUrlFromJson(responseBody);
                             if (imageUrl != null && !imageUrl.isEmpty()) {
-                                System.out.println("✅ [DEBUG] آپلود عکس موفقیت‌آمیز بود. مسیر استخراج شده: " + imageUrl);
+                                System.out.println("✅ [DEBUG] آپلود عکس(ها) موفقیت‌آمیز بود. مسیر(ها): " + imageUrl);
                                 future.complete(imageUrl);
                             } else {
                                 future.completeExceptionally(new RuntimeException("آدرس تصویر در پاسخ JSON یافت نشد. پاسخ: " + responseBody));
@@ -191,7 +239,7 @@ public class RegisterAdController {
     }
 
     /**
-     * 📝 ۴. ثبت نهایی آگهی در دیتابیس به همراه آدرس عکس دریافت شده
+     * 📝 ۴. ثبت نهایی آگهی در دیتابیس به همراه آدرس عکس(ها)ی دریافت شده
      */
     private void submitAdvertisement(String title, String priceText, String description, String city, String category, String imageUrl) {
         String safeTitle = escapeJson(title);
@@ -200,7 +248,7 @@ public class RegisterAdController {
         String safeCategory = escapeJson(category);
         String safeImageUrl = imageUrl != null ? escapeJson(imageUrl) : "";
 
-        // ✨ تکنیک اطمینان: ارسال همزمان image_url و imageUrl تا اسپرینگ جفتش را بررسی کند
+        // ✨ ارسال همزمان image_url و imageUrl تا اسپرینگ جفتش را بررسی کند
         String jsonBody = "{"
                 + "\"title\": \"" + safeTitle + "\","
                 + "\"description\": \"" + safeDescription + "\","
@@ -227,13 +275,13 @@ public class RegisterAdController {
                     response.headers().firstValue("Authorization").ifPresent(authHeader -> {
                         if (authHeader.startsWith("Bearer ")) {
                             MainApplication.jwtToken = authHeader.substring(7);
-                            System.out.println("🔄 توکن فرانت‌انند پس از ثبت موفق آگهی تمدید شد.");
+                            System.out.println("🔄 توکن فرانت‌اند پس از ثبت موفق آگهی تمدید شد.");
                         }
                     });
 
                     Platform.runLater(() -> {
                         if (response.statusCode() == 200 || response.statusCode() == 201) {
-                            showAlert(Alert.AlertType.INFORMATION, "موفقیت", "آگهی شما با موفقیت ثبت شد!");
+                            showAlert(Alert.AlertType.INFORMATION, "موفقیت", "آگهی شما با موفقیت ثبت شد و پس از تأیید مدیر نمایش داده می‌شود!");
                             clearFormFields();
                             if (helloController != null) {
                                 helloController.showHomeScreen();
@@ -250,37 +298,36 @@ public class RegisterAdController {
     }
 
     /**
-     * ⚙️ ۵. متد کمکی ساخت پکت استاندارد Multipart/Form-Data به صورت بایتی
+     * ⚙️ ۵. ساخت پکت Multipart/Form-Data برای چند فایل به صورت بایتی
      */
-    private byte[] createMultipartBody(File file, String boundary) throws IOException {
-        String fileName = file.getName();
-        String mimeType = "image/jpeg";
-        try {
-            mimeType = Files.probeContentType(file.toPath());
-            if (mimeType == null) mimeType = "image/jpeg";
-        } catch (Exception e) {
-            // پیش‌فرض jpeg
+    private byte[] createMultipartBody(List<File> files, String boundary) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        for (File file : files) {
+            String fileName = file.getName();
+            String mimeType = "image/jpeg";
+            try {
+                mimeType = Files.probeContentType(file.toPath());
+                if (mimeType == null) mimeType = "image/jpeg";
+            } catch (Exception e) {
+                // پیش‌فرض jpeg
+            }
+
+            String header = "--" + boundary + "\r\n"
+                    + "Content-Disposition: form-data; name=\"files\"; filename=\"" + fileName + "\"\r\n"
+                    + "Content-Type: " + mimeType + "\r\n\r\n";
+
+            out.write(header.getBytes(StandardCharsets.UTF_8));
+            out.write(Files.readAllBytes(file.toPath()));
+            out.write("\r\n".getBytes(StandardCharsets.UTF_8));
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("--").append(boundary).append("\r\n");
-        sb.append("Content-Disposition: form-data; name=\"file\"; filename=\"").append(fileName).append("\"\r\n");
-        sb.append("Content-Type: ").append(mimeType).append("\r\n\r\n");
-
-        byte[] header = sb.toString().getBytes(StandardCharsets.UTF_8);
-        byte[] fileBytes = Files.readAllBytes(file.toPath());
-        byte[] footer = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
-
-        byte[] body = new byte[header.length + fileBytes.length + footer.length];
-        System.arraycopy(header, 0, body, 0, header.length);
-        System.arraycopy(fileBytes, 0, body, header.length, fileBytes.length);
-        System.arraycopy(footer, 0, body, header.length + fileBytes.length, footer.length);
-
-        return body;
+        out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        return out.toByteArray();
     }
 
     /**
-     * 🔍 ۶. متد کمکی اصلاح‌شده برای استخراج آدرس تصویر با پشتیبانی دقیق از کلیدهای دیتابیس
+     * 🔍 ۶. استخراج آدرس تصویر(ها) از پاسخ JSON سرور
      */
     private String extractImageUrlFromJson(String json) {
         if (json == null || json.trim().isEmpty()) return null;
@@ -289,7 +336,6 @@ public class RegisterAdController {
             return json.trim();
         }
 
-        // 🛠️ اصلاح کلید اصلی به "image_url" با کاراکتر آندراسکور (_)
         String[] keys = {"\"image_url\"", "\"imageUrl\"", "\"image-url\"", "\"url\"", "\"fileUrl\"", "\"path\""};
         for (String key : keys) {
             int index = json.indexOf(key);
@@ -324,10 +370,8 @@ public class RegisterAdController {
         descriptionInput.clear();
         cityInput.getSelectionModel().clearSelection();
         categoryInput.getSelectionModel().clearSelection();
-        selectedImageFile = null;
-        if (imagePathLabel != null) {
-            imagePathLabel.setText("هیچ عکسی انتخاب نشده است.");
-        }
+        selectedImageFiles.clear();
+        renderImageThumbs();
     }
 
     private String escapeJson(String input) {

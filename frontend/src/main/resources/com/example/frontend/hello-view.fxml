@@ -5,6 +5,8 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
@@ -19,41 +21,41 @@
 <BorderPane fx:id="mainBorderPane" prefHeight="750.0" prefWidth="1100.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://github.com/fxml/1" fx:controller="com.example.frontend.HelloController">
 
     <top>
-        <HBox alignment="CENTER_RIGHT" prefHeight="65.0" spacing="20.0" style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-width: 0 0 1 0;" BorderPane.alignment="CENTER">
+        <HBox alignment="CENTER_RIGHT" prefHeight="65.0" spacing="10.0" style="-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-width: 0 0 1 0;" BorderPane.alignment="CENTER">
             <children>
-                <Button fx:id="myDivarButton" mnemonicParsing="false" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="دیوار من" />
+                <Button fx:id="myDivarButton" mnemonicParsing="false" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="بازارچه من" />
 
-                <Button mnemonicParsing="false" onAction="#onRegisterAdScreenClick" style="-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" text="ثبت آگهی">
-                    <font>
-                        <Font name="System Bold" size="13.0" />
-                    </font>
+                <Button fx:id="btnRegisterNav" mnemonicParsing="false" onAction="#onRegisterAdScreenClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-background-radius: 6; -fx-border-radius: 6;" text="ثبت آگهی">
                     <padding>
                         <Insets bottom="8.0" left="16.0" right="16.0" top="8.0" />
                     </padding>
                 </Button>
 
-                <Button mnemonicParsing="false" onAction="#onChatScreenClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="چت" />
+                <Button fx:id="btnChatNav" mnemonicParsing="false" onAction="#onChatScreenClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-background-radius: 6; -fx-border-radius: 6;" text="چت" />
 
-                <Button mnemonicParsing="false" onAction="#onLoadMyAdsClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="آگهی‌های من" />
-
-                <Button mnemonicParsing="false" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="پشتیبانی" />
+                <!-- ❌ دکمه جداگانه «آگهی‌های من» حذف شد — فقط از منوی «دیوار من» در دسترس است -->
+                <!-- ❌ دکمه «پشتیبانی» کاملاً حذف شد -->
 
                 <Region HBox.hgrow="ALWAYS" />
 
                 <!-- 🔍 اضافه شدن fx:id و رویداد فیلتر همزمان جستجو -->
-                <TextField fx:id="searchField" onKeyReleased="#onSearchKeyReleased" prefHeight="35.0" prefWidth="380.0" promptText="جستجو در همه آگهی‌ها..." style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;">
+                <TextField fx:id="searchField" onKeyReleased="#onSearchKeyReleased" prefHeight="35.0" prefWidth="230.0" promptText="جستجو..." style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;">
                     <font>
                         <Font size="13.0" />
                     </font>
                 </TextField>
 
-                <ComboBox prefHeight="35.0" promptText="تهران" style="-fx-background-color: #160f29; -fx-text-fill: white; -fx-background-radius: 6; -fx-cursor: hand;" />
+                <!-- 🔍 فیلترها و مرتب‌سازی در ردیف بالا (به‌جای دکمه جداگانه) -->
+                <TextField fx:id="minPriceField" onKeyReleased="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="85.0" promptText="از قیمت" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;" />
+                <TextField fx:id="maxPriceField" onKeyReleased="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="85.0" promptText="تا قیمت" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;" />
+                <ComboBox fx:id="sortFilterCombo" onAction="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="115.0" promptText="مرتب‌سازی" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" />
+                <ComboBox fx:id="cityFilterCombo" onAction="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="115.0" promptText="همه شهرها" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" />
 
-                <Label onMouseClicked="#showHomeScreen" text="دیوار" textFill="#ffc83b" style="-fx-cursor: hand;">
-                    <font>
-                        <Font name="System Bold" size="26.0" />
-                    </font>
-                </Label>
+                <ImageView fitHeight="44.0" pickOnBounds="true" preserveRatio="true" onMouseClicked="#showHomeScreen" style="-fx-cursor: hand;">
+                    <image>
+                        <Image url="@logo.png" />
+                    </image>
+                </ImageView>
             </children>
             <padding>
                 <Insets left="25.0" right="25.0" />
@@ -62,7 +64,7 @@
     </top>
 
     <right>
-        <VBox alignment="TOP_RIGHT" prefWidth="240.0" spacing="12.0" style="-fx-background-color: transparent;" BorderPane.alignment="CENTER">
+        <VBox fx:id="categoryVBox" alignment="TOP_RIGHT" prefWidth="240.0" spacing="12.0" style="-fx-background-color: transparent;" BorderPane.alignment="CENTER">
             <children>
                 <Label text="دسته‌بندی‌ها" textFill="WHITE">
                     <font>
@@ -72,12 +74,13 @@
                         <Insets bottom="8.0" />
                     </VBox.margin>
                 </Label>
-                <!-- 🏷️ اضافه شدن متد فیلتر دسته‌بندی با کلیک کاربر -->
-                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="املاک" />
-                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="وسایل نقلیه" />
-                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="کالای دیجیتال" />
-                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="خانه و آشپزخانه" />
-                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand;" text="خدمات" />
+                <!-- 🏷️ گزینه «همه محصولات» برای پاک کردن فیلتر دسته‌بندی -->
+                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;" text="همه محصولات" />
+                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;" text="املاک" />
+                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;" text="وسایل نقلیه" />
+                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;" text="کالای دیجیتال" />
+                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;" text="خانه و آشپزخانه" />
+                <Button onAction="#onCategoryClick" alignment="BASELINE_RIGHT" maxWidth="1.7976931348623157E308" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;" text="خدمات" />
             </children>
             <padding>
                 <Insets left="10.0" right="25.0" top="25.0" />
