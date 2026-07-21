@@ -23,6 +23,7 @@ import java.util.Optional;
 /**
  * 💬 چت غیرهمزمان بین خریدار و فروشنده — نسخه تکمیل‌شده:
  * 🚫 کاربران مسدودشده اجازه شروع گفتگو یا ارسال پیام ندارند (مطابق سند پروژه)
+ * 🚫 جدید: با کاربر مسدودشده هم نمی‌توان گفتگو شروع کرد یا به او پیام فرستاد
  */
 @RestController
 @RequestMapping("/api/chat")
@@ -54,7 +55,7 @@ public class ChatRestController {
      * 🔍 شروع (یا ادامه) یک گفتگو برای یک آگهی — هر (خریدار، فروشنده، آگهی) فقط یک گفتگو دارد
      */
     @PostMapping("/start")
-    public ResponseEntity<?> startConversation(@RequestBody Map<String, Object> body, Principal principal) {
+    public ResponseEntity startConversation(@RequestBody Map<String, Object> body, Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
@@ -62,7 +63,7 @@ public class ChatRestController {
 
         String buyerUsername = principal.getName();
 
-        // 🚫 جدید: کاربر مسدودشده اجازه چت ندارد
+        // 🚫 کاربر مسدودشده اجازه چت ندارد
         if (isBlocked(buyerUsername)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "حساب کاربری شما مسدود شده است و امکان گفتگو ندارید.", "status", 403));
@@ -81,18 +82,24 @@ public class ChatRestController {
                     .body(Map.of("message", "شناسه آگهی نامعتبر است.", "status", 400));
         }
 
-        Optional<Advertisement> adOpt = advertisementRepository.findById(adId);
+        Optional adOpt = advertisementRepository.findById(adId);
         if (adOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "آگهی مورد نظر یافت نشد.", "status", 404));
         }
 
-        Advertisement ad = adOpt.get();
+        Advertisement ad = (Advertisement) adOpt.get();
         String sellerUsername = ad.getOwnerUsername();
 
         if (buyerUsername.equals(sellerUsername)) {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "شما نمی‌توانید برای آگهی خودتان گفتگو شروع کنید.", "status", 400));
+        }
+
+        // 🚫 جدید: امکان شروع گفتگو با فروشنده مسدودشده وجود ندارد
+        if (isBlocked(sellerUsername)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "این کاربر توسط مدیر مسدود شده است و امکان گفتگو با او وجود ندارد.", "status", 403));
         }
 
         Conversation conversation = conversationRepository
@@ -113,7 +120,7 @@ public class ChatRestController {
      * 📚 لیست گفتگوهای کاربر جاری (چه به عنوان خریدار چه فروشنده)
      */
     @GetMapping("/conversations")
-    public ResponseEntity<?> getMyConversations(Principal principal) {
+    public ResponseEntity getMyConversations(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
@@ -151,19 +158,19 @@ public class ChatRestController {
      * 💬 دریافت پیام‌های یک گفتگو (فقط طرفین گفتگو)
      */
     @GetMapping("/conversations/{conversationId}/messages")
-    public ResponseEntity<?> getMessages(@PathVariable Long conversationId, Principal principal) {
+    public ResponseEntity getMessages(@PathVariable Long conversationId, Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
         }
 
-        Optional<Conversation> convOpt = conversationRepository.findById(conversationId);
+        Optional convOpt = conversationRepository.findById(conversationId);
         if (convOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "گفتگوی مورد نظر یافت نشد.", "status", 404));
         }
 
-        Conversation conversation = convOpt.get();
+        Conversation conversation = (Conversation) convOpt.get();
         String username = principal.getName();
 
         if (!username.equals(conversation.getBuyerUsername())
@@ -197,7 +204,7 @@ public class ChatRestController {
      * 📤 ارسال پیام در یک گفتگو (فقط طرفین گفتگو، کاربر مسدود ممنوع)
      */
     @PostMapping("/conversations/{conversationId}/messages")
-    public ResponseEntity<?> sendMessage(
+    public ResponseEntity sendMessage(
             @PathVariable Long conversationId,
             @RequestBody Map<String, Object> body,
             Principal principal) {
@@ -209,7 +216,7 @@ public class ChatRestController {
 
         String username = principal.getName();
 
-        // 🚫 جدید: کاربر مسدودشده اجازه ارسال پیام ندارد
+        // 🚫 کاربر مسدودشده اجازه ارسال پیام ندارد
         if (isBlocked(username)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "حساب کاربری شما مسدود شده است و امکان ارسال پیام ندارید.", "status", 403));
@@ -220,18 +227,27 @@ public class ChatRestController {
                     .body(Map.of("message", "متن پیام نمی‌تواند خالی باشد.", "status", 400));
         }
 
-        Optional<Conversation> convOpt = conversationRepository.findById(conversationId);
+        Optional convOpt = conversationRepository.findById(conversationId);
         if (convOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "گفتگوی مورد نظر یافت نشد.", "status", 404));
         }
 
-        Conversation conversation = convOpt.get();
+        Conversation conversation = (Conversation) convOpt.get();
 
         if (!username.equals(conversation.getBuyerUsername())
                 && !username.equals(conversation.getSellerUsername())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "شما به این گفتگو دسترسی ندارید.", "status", 403));
+        }
+
+        // 🚫 جدید: ارسال پیام به کاربر مسدودشده ممنوع است
+        String otherParty = username.equals(conversation.getBuyerUsername())
+                ? conversation.getSellerUsername()
+                : conversation.getBuyerUsername();
+        if (isBlocked(otherParty)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "این کاربر توسط مدیر مسدود شده است و امکان ارسال پیام به او وجود ندارد.", "status", 403));
         }
 
         Message message = new Message();
