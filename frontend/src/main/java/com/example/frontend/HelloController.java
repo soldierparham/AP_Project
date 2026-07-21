@@ -81,6 +81,10 @@ public class HelloController {
 
     // 🗂️ دسته‌بندی‌های دریافت‌شده از سرور
     private final java.util.List<String> serverCategories = new java.util.ArrayList<>();
+
+    // شهرهای دریافتی از سرور (قابل مدیریت توسط ادمین)
+    private final java.util.List<String> serverCities = new java.util.ArrayList<>(java.util.List.of(
+            "تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت"));
     private String filterCity = "";
     private String filterMinPrice = "";
     private String filterMaxPrice = "";
@@ -114,6 +118,26 @@ public class HelloController {
         hoverMenu.getItems().add(logoutItem);
 
         if (myDivarButton != null) {
+            // باز شدن پنل «بازارچه من» با رفتن موس روی دکمه
+            javafx.animation.PauseTransition hideDelay =
+                    new javafx.animation.PauseTransition(javafx.util.Duration.millis(250));
+            hideDelay.setOnFinished(ev -> hoverMenu.hide());
+
+            myDivarButton.setOnMouseEntered(e -> {
+                hideDelay.stop();
+                if (!hoverMenu.isShowing()) {
+                    hoverMenu.show(myDivarButton, Side.BOTTOM, 0, 5);
+                }
+            });
+            myDivarButton.setOnMouseExited(e -> hideDelay.playFromStart());
+
+            // تا وقتی موس روی خود منو است، منو باز بماند
+            hoverMenu.setOnShown(ev -> {
+                Node menuRoot = hoverMenu.getScene().getRoot();
+                menuRoot.setOnMouseEntered(e2 -> hideDelay.stop());
+                menuRoot.setOnMouseExited(e2 -> hideDelay.playFromStart());
+            });
+
             myDivarButton.setOnMouseClicked(e ->
                     hoverMenu.show(myDivarButton, Side.BOTTOM, 0, 5));
         }
@@ -124,8 +148,10 @@ public class HelloController {
 
         // 🔍 مقداردهی کنترل‌های فیلتر و مرتب‌سازی ردیف بالا
         if (cityFilterCombo != null) {
-            cityFilterCombo.getItems().addAll("همه شهرها", "تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت");
+            cityFilterCombo.getItems().add("همه شهرها");
+            cityFilterCombo.getItems().addAll(serverCities);
         }
+        loadCitiesFromServer();
         if (sortFilterCombo != null) {
             sortFilterCombo.getItems().addAll("جدیدترین", "ارزان‌ترین", "گران‌ترین");
         }
@@ -654,14 +680,33 @@ public class HelloController {
         Pattern objectPattern = Pattern.compile("\\{([^}]+)\\}");
         Matcher matcher = objectPattern.matcher(dataPart);
 
+        // چیدمان دو ستونه کارت‌ها (هر ردیف دو کالا)
+        GridPane cardsGrid = new GridPane();
+        cardsGrid.setHgap(15);
+        cardsGrid.setVgap(15);
+        ColumnConstraints colRight = new ColumnConstraints();
+        colRight.setPercentWidth(50);
+        ColumnConstraints colLeft = new ColumnConstraints();
+        colLeft.setPercentWidth(50);
+        cardsGrid.getColumnConstraints().addAll(colRight, colLeft);
+
         boolean anyAdFound = false;
+        int cardIndex = 0;
         while (matcher.find()) {
             String adJson = matcher.group(1);
             if (!adJson.contains("\"title\"")) {
                 continue;
             }
             anyAdFound = true;
-            adsContainer.getChildren().add(buildAdCard(adJson, isMyAdsView));
+            Node cardNode = buildAdCard(adJson, isMyAdsView);
+            GridPane.setHgrow(cardNode, Priority.ALWAYS);
+            GridPane.setFillWidth(cardNode, true);
+            cardsGrid.add(cardNode, cardIndex % 2, cardIndex / 2);
+            cardIndex++;
+        }
+
+        if (anyAdFound) {
+            adsContainer.getChildren().add(cardsGrid);
         }
 
         if (!anyAdFound) {
@@ -701,7 +746,14 @@ public class HelloController {
         card.setPadding(new Insets(12));
         card.setAlignment(Pos.CENTER_RIGHT);
         card.setCursor(Cursor.HAND);
-        card.setStyle("-fx-background-color: #241942; -fx-background-radius: 12; -fx-border-color: #3b286b; -fx-border-radius: 12;");
+        card.setMaxWidth(Double.MAX_VALUE);
+
+        // نور طلایی زیر کارت هنگام رفتن موس روی آن
+        final String cardNormalStyle = "-fx-background-color: #241942; -fx-background-radius: 12; -fx-border-color: #3b286b; -fx-border-radius: 12;";
+        final String cardHoverStyle = "-fx-background-color: #241942; -fx-background-radius: 12; -fx-border-color: #ffc83b; -fx-border-radius: 12; -fx-effect: dropshadow(gaussian, rgba(255, 200, 59, 0.75), 20, 0.35, 0, 8);";
+        card.setStyle(cardNormalStyle);
+        card.setOnMouseEntered(e -> card.setStyle(cardHoverStyle));
+        card.setOnMouseExited(e -> card.setStyle(cardNormalStyle));
 
         // 🖼️ تصویر آگهی (اولین تصویر در حالت چندتصویری)
         ImageView imageView = new ImageView();
@@ -714,6 +766,12 @@ public class HelloController {
                 imageView.setImage(new Image(BASE_URL + firstImage, true));
             } catch (Exception ignored) {
             }
+            // با کلیک روی عکس در همین صفحه، عکس بزرگ نمایش داده می‌شود
+            imageView.setCursor(Cursor.HAND);
+            imageView.setOnMouseClicked(e -> {
+                e.consume();
+                showEnlargedImage(BASE_URL + firstImage);
+            });
         }
 
         VBox textContainer = new VBox(5);
@@ -808,6 +866,42 @@ public class HelloController {
         return card;
     }
 
+    // نمایش بزرگ عکس به صورت لایه روی همان صفحه (با کلیک بسته می‌شود)
+    private void showEnlargedImage(String imageUrl) {
+        javafx.scene.Scene scene = mainBorderPane.getScene();
+        if (scene == null) return;
+
+        Parent originalRoot = scene.getRoot();
+
+        ImageView bigView = new ImageView();
+        try {
+            bigView.setImage(new Image(imageUrl, true));
+        } catch (Exception ignored) {
+        }
+        bigView.setPreserveRatio(true);
+        bigView.fitWidthProperty().bind(scene.widthProperty().multiply(0.75));
+        bigView.fitHeightProperty().bind(scene.heightProperty().multiply(0.75));
+
+        Label lblHint = new Label("برای بستن، روی صفحه کلیک کنید");
+        lblHint.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        VBox content = new VBox(12, bigView, lblHint);
+        content.setAlignment(Pos.CENTER);
+
+        StackPane overlay = new StackPane(content);
+        overlay.setStyle("-fx-background-color: rgba(10, 6, 20, 0.88);");
+        overlay.setCursor(Cursor.HAND);
+
+        StackPane newRoot = new StackPane(originalRoot, overlay);
+        scene.setRoot(newRoot);
+
+        overlay.setOnMouseClicked(e -> {
+            e.consume();
+            newRoot.getChildren().remove(originalRoot);
+            scene.setRoot(originalRoot);
+        });
+    }
+
     private String statusToPersian(String status) {
         if (status == null) return "";
         switch (status.toUpperCase()) {
@@ -876,7 +970,7 @@ public class HelloController {
         Label lblFieldCity = new Label("شهر:");
         lblFieldCity.setStyle(labelStyle);
         ComboBox<String> cmbCity = new ComboBox<>();
-        cmbCity.getItems().addAll("تهران", "مشهد", "اصفهان", "شیراز", "تبریز", "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت");
+        cmbCity.getItems().addAll(serverCities);
         if (city != null && !city.isBlank() && !cmbCity.getItems().contains(city)) {
             cmbCity.getItems().add(city);
         }
@@ -1573,10 +1667,53 @@ public class HelloController {
         }
     }
 
+    // دریافت لیست شهرها از سرور تا تغییرات ادمین (افزودن/ویرایش/حذف) اعمال شود
+    private void loadCitiesFromServer() {
+        java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create(BASE_URL + "/api/cities"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        java.net.http.HttpClient.newHttpClient()
+                .sendAsync(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200) return;
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
+                            .matcher(response.body());
+                    while (m.find()) {
+                        String n = m.group(1).trim();
+                        if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                    }
+                    if (names.isEmpty()) return;
+                    javafx.application.Platform.runLater(() -> {
+                        serverCities.clear();
+                        serverCities.addAll(names);
+                        if (cityFilterCombo != null) {
+                            java.util.List<String> desired = new java.util.ArrayList<>();
+                            desired.add("همه شهرها");
+                            desired.addAll(names);
+                            if (!desired.equals(new java.util.ArrayList<>(cityFilterCombo.getItems()))) {
+                                String current = cityFilterCombo.getValue();
+                                cityFilterCombo.getItems().setAll(desired);
+                                if (current != null && desired.contains(current)) {
+                                    cityFilterCombo.setValue(current);
+                                }
+                            }
+                        }
+                    });
+                });
+    }
+
     private void openAdminPanel() {
         setActiveTopBarSection("myDivar");
         setCategorySidebarVisible(false);
-        mainBorderPane.setCenter(new AdminPanelController(this::showHomeScreen).createView());
+        mainBorderPane.setCenter(new AdminPanelController(() -> {
+            loadCitiesFromServer(); // اعمال تغییرات شهرها پس از خروج از پنل مدیریت
+            showHomeScreen();
+        }).createView());
     }
 
     // ---------------------------------------------------------- ثبت آگهی و خروج

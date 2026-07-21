@@ -77,6 +77,9 @@ public class RegisterAdController {
         // 🗂️ دریافت دسته‌بندی‌های به‌روز از سرور (شامل دسته‌های ادمین)
         loadCategoriesFromServer();
 
+        // دریافت شهرهای به‌روز از سرور (شامل شهرهای اضافه/ویرایش‌شده توسط ادمین)
+        loadCitiesFromServer();
+
         // thumbnails از onSelectImageClick بارگذاری می‌شوند
     }
 
@@ -102,6 +105,31 @@ public class RegisterAdController {
                     if (names.isEmpty()) return;
                     javafx.application.Platform.runLater(() ->
                             categoryInput.getItems().setAll(names));
+                });
+    }
+
+    // دریافت لیست شهرها از سرور تا شهرهای جدید ادمین هم قابل انتخاب باشند
+    private void loadCitiesFromServer() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(HelloController.BASE_URL + "/api/cities"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200) return;
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
+                            .matcher(response.body());
+                    while (m.find()) {
+                        String n = m.group(1).trim();
+                        if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                    }
+                    if (names.isEmpty()) return;
+                    javafx.application.Platform.runLater(() ->
+                            cityInput.getItems().setAll(names));
                 });
     }
 

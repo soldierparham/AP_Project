@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.model.Advertisement;
 import com.example.backend.model.Category;
+import com.example.backend.model.City;
 import com.example.backend.model.User;
 import com.example.backend.repository.*;
 import com.example.backend.service.AdvertisementService;
@@ -42,6 +43,9 @@ public class AdminController {
 
     @Autowired
     private CategoryRepository categoryRepository;
+
+    @Autowired
+    private CityRepository cityRepository;
 
     @Autowired
     private ConversationRepository conversationRepository;
@@ -323,6 +327,175 @@ public class AdminController {
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "دسته‌بندی و " + adsInCategory.size() + " آگهی مرتبط با آن حذف شد."
+        ));
+    }
+
+    /**
+     * ✏️ جدید: ویرایش (تغییر نام) دسته‌بندی
+     * نام دسته در همه آگهی‌های مرتبط نیز به‌روزرسانی می‌شود تا فیلترها درست بمانند.
+     */
+    @Transactional
+    @PutMapping("/categories/{id}")
+    public ResponseEntity renameCategory(@PathVariable Long id,
+                                         @RequestBody Map<String, Object> body,
+                                         Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
+        if (denied != null) return denied;
+
+        if (body == null || body.get("name") == null || body.get("name").toString().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "نام جدید دسته‌بندی الزامی است.", "status", 400));
+        }
+
+        Optional<Category> catOpt = categoryRepository.findById(id);
+        if (catOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "دسته‌بندی مورد نظر یافت نشد.", "status", 404));
+        }
+
+        String newName = body.get("name").toString().trim();
+        Category category = catOpt.get();
+        String oldName = category.getName();
+
+        if (!newName.equalsIgnoreCase(oldName) && categoryRepository.existsByNameIgnoreCase(newName)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "دسته‌بندی دیگری با این نام وجود دارد.", "status", 400));
+        }
+
+        category.setName(newName);
+        categoryRepository.save(category);
+
+        // به‌روزرسانی نام دسته در همه آگهی‌های مرتبط
+        List<Advertisement> ads = advertisementRepository.findByCategory(oldName);
+        for (Advertisement ad : ads) {
+            ad.setCategory(newName);
+        }
+        advertisementRepository.saveAll(ads);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "دسته‌بندی ویرایش شد و " + ads.size() + " آگهی مرتبط به‌روزرسانی گردید.",
+                "data", category
+        ));
+    }
+
+    // ---------- مدیریت شهرها ----------
+
+    @GetMapping("/cities")
+    public ResponseEntity listCities(Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
+        if (denied != null) return denied;
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "data", cityRepository.findAll()
+        ));
+    }
+
+    @Transactional
+    @PostMapping("/cities")
+    public ResponseEntity addCity(@RequestBody Map<String, Object> body, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
+        if (denied != null) return denied;
+
+        if (body == null || body.get("name") == null || body.get("name").toString().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "نام شهر الزامی است.", "status", 400));
+        }
+
+        String name = body.get("name").toString().trim();
+        if (cityRepository.existsByNameIgnoreCase(name)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "این شهر قبلاً ثبت شده است.", "status", 400));
+        }
+
+        City saved = cityRepository.save(new City(name));
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "status", "success",
+                "message", "شهر جدید اضافه شد.",
+                "data", saved
+        ));
+    }
+
+    /**
+     * ✏️ جدید: ویرایش (تغییر نام) شهر
+     * نام شهر در همه آگهی‌های مرتبط نیز به‌روزرسانی می‌شود تا فیلتر شهر درست بماند.
+     */
+    @Transactional
+    @PutMapping("/cities/{id}")
+    public ResponseEntity renameCity(@PathVariable Long id,
+                                     @RequestBody Map<String, Object> body,
+                                     Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
+        if (denied != null) return denied;
+
+        if (body == null || body.get("name") == null || body.get("name").toString().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "نام جدید شهر الزامی است.", "status", 400));
+        }
+
+        Optional<City> cityOpt = cityRepository.findById(id);
+        if (cityOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "شهر مورد نظر یافت نشد.", "status", 404));
+        }
+
+        String newName = body.get("name").toString().trim();
+        City city = cityOpt.get();
+        String oldName = city.getName();
+
+        if (!newName.equalsIgnoreCase(oldName) && cityRepository.existsByNameIgnoreCase(newName)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "شهر دیگری با این نام وجود دارد.", "status", 400));
+        }
+
+        city.setName(newName);
+        cityRepository.save(city);
+
+        // به‌روزرسانی نام شهر در همه آگهی‌های مرتبط
+        List<Advertisement> ads = advertisementRepository.findByCity(oldName);
+        for (Advertisement ad : ads) {
+            ad.setCity(newName);
+        }
+        advertisementRepository.saveAll(ads);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "شهر ویرایش شد و " + ads.size() + " آگهی مرتبط به‌روزرسانی گردید.",
+                "data", city
+        ));
+    }
+
+    /**
+     * حذف شهر از لیست شهرها
+     * همه آگهی‌های ثبت‌شده در آن شهر نیز با پاکسازی کامل وابستگی‌ها (چت‌ها، تصاویر، علاقه‌مندی‌ها) حذف می‌شوند.
+     */
+    @Transactional
+    @DeleteMapping("/cities/{id}")
+    public ResponseEntity deleteCity(@PathVariable Long id, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
+        if (denied != null) return denied;
+
+        Optional<City> cityOpt = cityRepository.findById(id);
+        if (cityOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "شهر مورد نظر یافت نشد.", "status", 404));
+        }
+
+        String name = cityOpt.get().getName();
+
+        // حذف تمام آگهی‌های این شهر (با پاکسازی کامل وابستگی‌ها از طریق سرویس)
+        List<Advertisement> adsInCity = advertisementRepository.findByCity(name);
+        for (Advertisement ad : adsInCity) {
+            advertisementService.deleteAd(ad.getId());
+        }
+
+        cityRepository.deleteById(id);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "شهر «" + name + "» و " + adsInCity.size() + " آگهی مرتبط با آن حذف شد."
         ));
     }
 

@@ -18,4 +18,10 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, Lo
 
     // 🟢 جدید: شمارش آگهی‌ها بر اساس وضعیت (برای داشبورد آماری مدیر)
     long countByStatus(String status);
+
+    // ✏️ جدید: آگهی‌های یک دسته‌بندی مشخص (برای ویرایش نام دسته توسط ادمین)
+    List<Advertisement> findByCategory(String category);
+
+    // 🏙️ جدید: آگهی‌های یک شهر مشخص (برای ویرایش نام شهر توسط ادمین)
+    List<Advertisement> findByCity(String city);
 }

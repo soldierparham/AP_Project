@@ -30,6 +30,7 @@ public class AdminPanelController {
     private VBox adsBox;
     private VBox usersBox;
     private VBox categoriesBox;
+    private VBox citiesBox;
     private VBox statsBox;
     private ComboBox<String> statusCombo;
 
@@ -64,9 +65,10 @@ public class AdminPanelController {
         Button adsTabBtn = buildTabButton("\ud83d\udd52 مدیریت آگهی‌ها", buildAdsTab(), contentHolder);
         Button usersTabBtn = buildTabButton("\ud83d\udc65 کاربران", buildUsersTab(), contentHolder);
         Button categoriesTabBtn = buildTabButton("\ud83d\uddc2\ufe0f دسته‌بندی‌ها", buildCategoriesTab(), contentHolder);
+        Button citiesTabBtn = buildTabButton("\ud83c\udfd9\ufe0f شهرها", buildCitiesTab(), contentHolder);
         Button statsTabBtn = buildTabButton("\ud83d\udcca آمار", buildStatsTab(), contentHolder);
 
-        HBox tabBar = new HBox(10, adsTabBtn, usersTabBtn, categoriesTabBtn, statsTabBtn);
+        HBox tabBar = new HBox(10, adsTabBtn, usersTabBtn, categoriesTabBtn, citiesTabBtn, statsTabBtn);
         tabBar.setPadding(new Insets(0, 20, 12, 20));
 
         VBox centerBox = new VBox(tabBar, contentHolder);
@@ -81,6 +83,7 @@ public class AdminPanelController {
         loadAds("PENDING");
         loadUsers();
         loadCategories();
+        loadCities();
         loadStats();
 
         return root;
@@ -382,26 +385,166 @@ public class AdminPanelController {
                         JsonNode data = mapper.readTree(response.body()).path("data");
                         for (JsonNode category : data) {
                             long id = category.path("id").asLong();
+                            String catName = category.path("name").asText("-");
 
-                            Label lblName = new Label("\ud83d\uddc2\ufe0f " + category.path("name").asText("-"));
+                            Label lblName = new Label("\ud83d\uddc2\ufe0f " + catName);
                             lblName.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
 
                             Region spacer = new Region();
                             HBox.setHgrow(spacer, Priority.ALWAYS);
 
-                            Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
-                            btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
-                            btnDelete.setOnAction(e -> deleteAdminAction("/api/admin/categories/" + id, this::loadCategories));
-
-                            HBox row = new HBox(10, lblName, spacer, btnDelete);
+                            HBox row = new HBox(10);
                             row.setAlignment(Pos.CENTER_LEFT);
                             row.setPadding(new Insets(10));
                             row.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
 
+                            Button btnEdit = new Button("✏️ ویرایش");
+                            btnEdit.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                            btnEdit.setOnAction(e -> showInlineRename(row, catName,
+                                    newName -> putAdminAction("/api/admin/categories/" + id,
+                                            "{\"name\":\"" + newName.replace("\"", "\\\"") + "\"}",
+                                            this::loadCategories),
+                                    this::loadCategories));
+
+                            Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
+                            btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                            btnDelete.setOnAction(e -> deleteAdminAction("/api/admin/categories/" + id, this::loadCategories));
+
+                            row.getChildren().addAll(lblName, spacer, btnEdit, btnDelete);
                             categoriesBox.getChildren().add(row);
                         }
                     } catch (Exception ex) {
                         categoriesBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
+                    }
+                }));
+    }
+
+    // ---------------------------------------------------------- تب شهرها
+
+    private Node buildCitiesTab() {
+        citiesBox = new VBox(10);
+
+        TextField txtName = new TextField();
+        txtName.setPromptText("نام شهر جدید...");
+        txtName.setStyle("-fx-background-color: #241942; -fx-text-fill: white; -fx-prompt-text-fill: #b9a6df; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';");
+        HBox.setHgrow(txtName, Priority.ALWAYS);
+
+        Button btnAdd = new Button("➕ افزودن");
+        btnAdd.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnAdd.setOnAction(e -> {
+            String name = txtName.getText() == null ? "" : txtName.getText().trim();
+            if (name.isEmpty()) {
+                return;
+            }
+            String body = "{\"name\":\"" + name.replace("\"", "\\\"") + "\"}";
+            postAdminAction("/api/admin/cities", body, () -> {
+                txtName.clear();
+                loadCities();
+            });
+        });
+
+        HBox controls = new HBox(10, txtName, btnAdd);
+        controls.setPadding(new Insets(10, 15, 0, 15));
+
+        VBox container = new VBox(10, controls, wrapScroll(citiesBox));
+        VBox.setVgrow(container.getChildren().get(1), Priority.ALWAYS);
+        container.setStyle("-fx-background-color: #160f29;");
+        return container;
+    }
+
+    private void loadCities() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/admin/cities"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    citiesBox.getChildren().clear();
+                    if (response.statusCode() != 200) {
+                        citiesBox.getChildren().add(mutedLabel("خطا در دریافت شهرها (کد " + response.statusCode() + ")"));
+                        return;
+                    }
+                    try {
+                        JsonNode data = mapper.readTree(response.body()).path("data");
+                        for (JsonNode city : data) {
+                            long id = city.path("id").asLong();
+                            String cityName = city.path("name").asText("-");
+
+                            Label lblName = new Label("\ud83c\udfd9\ufe0f " + cityName);
+                            lblName.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+                            Region spacer = new Region();
+                            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                            HBox row = new HBox(10);
+                            row.setAlignment(Pos.CENTER_LEFT);
+                            row.setPadding(new Insets(10));
+                            row.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
+
+                            Button btnEdit = new Button("✏️ ویرایش");
+                            btnEdit.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                            btnEdit.setOnAction(e -> showInlineRename(row, cityName,
+                                    newName -> putAdminAction("/api/admin/cities/" + id,
+                                            "{\"name\":\"" + newName.replace("\"", "\\\"") + "\"}",
+                                            this::loadCities),
+                                    this::loadCities));
+
+                            Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
+                            btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+                            btnDelete.setOnAction(e -> deleteAdminAction("/api/admin/cities/" + id, this::loadCities));
+
+                            row.getChildren().addAll(lblName, spacer, btnEdit, btnDelete);
+                            citiesBox.getChildren().add(row);
+                        }
+                    } catch (Exception ex) {
+                        citiesBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
+                    }
+                }));
+    }
+
+    // ✏️ ویرایش درجا: تبدیل ردیف به فیلد متنی + دکمه ثبت/انصراف
+    private void showInlineRename(HBox row, String oldName,
+                                  java.util.function.Consumer<String> onSave,
+                                  Runnable onCancel) {
+        TextField txt = new TextField(oldName);
+        txt.setStyle("-fx-background-color: #160f29; -fx-text-fill: white; -fx-background-radius: 8; -fx-border-color: #ffc83b; -fx-border-radius: 8; -fx-font-family: 'Vazirmatn';");
+        HBox.setHgrow(txt, Priority.ALWAYS);
+
+        Button btnSave = new Button("✔ ثبت");
+        btnSave.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnSave.setOnAction(e -> {
+            String newName = txt.getText() == null ? "" : txt.getText().trim();
+            if (newName.isEmpty() || newName.equals(oldName)) {
+                onCancel.run();
+                return;
+            }
+            onSave.accept(newName);
+        });
+
+        Button btnCancel = new Button("✖ انصراف");
+        btnCancel.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnCancel.setOnAction(e -> onCancel.run());
+
+        row.getChildren().setAll(txt, btnSave, btnCancel);
+    }
+
+    // درخواست PUT برای ویرایش (دسته‌بندی/شهر)
+    private void putAdminAction(String path, String jsonBody, Runnable onSuccess) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + path))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonBody, java.nio.charset.StandardCharsets.UTF_8))
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                        onSuccess.run();
+                    } else {
+                        showError(response.body(), response.statusCode());
                     }
                 }));
     }

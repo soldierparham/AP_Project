@@ -1,8 +1,10 @@
 package com.example.backend.config;
 
 import com.example.backend.model.Category;
+import com.example.backend.model.City;
 import com.example.backend.model.User;
 import com.example.backend.repository.CategoryRepository;
+import com.example.backend.repository.CityRepository;
 import com.example.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -15,6 +17,7 @@ import java.util.List;
  * 🌱 ساخت داده‌های اولیه هنگام اجرای برنامه:
  * - حساب مدیر پیش‌فرض (شماره: 09000000000 ، رمز: admin123)
  * - دسته‌بندی‌های پیش‌فرض آگهی‌ها
+ * - 🏙️ جدید: شهرهای پیش‌فرض (قابل مدیریت توسط ادمین)
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -26,12 +29,16 @@ public class DataSeeder implements CommandLineRunner {
     private CategoryRepository categoryRepository;
 
     @Autowired
+    private CityRepository cityRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
         seedAdminUser();
         seedCategories();
+        seedCities();
     }
 
     private void seedAdminUser() {
@@ -70,6 +77,17 @@ public class DataSeeder implements CommandLineRunner {
             );
             defaults.forEach(name -> categoryRepository.save(new Category(name)));
             System.out.println("🗂️ دسته‌بندی‌های پیش‌فرض ساخته شدند.");
+        }
+    }
+
+    private void seedCities() {
+        if (cityRepository.count() == 0) {
+            List<String> defaults = List.of(
+                    "تهران", "مشهد", "اصفهان", "شیراز", "تبریز",
+                    "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت"
+            );
+            defaults.forEach(name -> cityRepository.save(new City(name)));
+            System.out.println("🏙️ شهرهای پیش‌فرض ساخته شدند.");
         }
     }
 }
