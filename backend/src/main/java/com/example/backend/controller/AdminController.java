@@ -287,7 +287,27 @@ public class AdminController {
                     .body(Map.of("message", "این دسته‌بندی قبلاً ثبت شده است.", "status", 400));
         }
 
-        Category saved = categoryRepository.save(new Category(name));
+        // زیردسته‌بندی: اگر parentId ارسال شده باشد اعتبارسنجی می‌شود (فقط یک سطح مجاز است)
+        Long parentId = null;
+        if (body.get("parentId") != null && !body.get("parentId").toString().isBlank()) {
+            try {
+                parentId = Long.parseLong(body.get("parentId").toString().trim());
+            } catch (NumberFormatException ex) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "شناسه دسته والد نامعتبر است.", "status", 400));
+            }
+            java.util.Optional<Category> parent = categoryRepository.findById(parentId);
+            if (parent.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "دسته والد یافت نشد.", "status", 400));
+            }
+            if (parent.get().getParentId() != null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "حداکثر یک سطح زیردسته مجاز است.", "status", 400));
+            }
+        }
+
+        Category saved = categoryRepository.save(new Category(name, parentId));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "status", "success",
@@ -322,11 +342,30 @@ public class AdminController {
             advertisementService.deleteAd(ad.getId());
         }
 
+        // حذف آبشاری زیردسته‌ها به همراه آگهی‌های هرکدام
+        int removedChildren = 0;
+        int removedChildAds = 0;
+        for (Category child : categoryRepository.findByParentId(id)) {
+            String childName = child.getName();
+            List<Advertisement> childAds = advertisementRepository.findAll().stream()
+                    .filter(a -> a.getCategory() != null && a.getCategory().equalsIgnoreCase(childName))
+                    .collect(Collectors.toList());
+            for (Advertisement ad : childAds) {
+                advertisementService.deleteAd(ad.getId());
+            }
+            removedChildAds += childAds.size();
+            categoryRepository.deleteById(child.getId());
+            removedChildren++;
+        }
+
         categoryRepository.deleteById(id);
 
+        String extra = removedChildren > 0
+                ? " و " + removedChildren + " زیردسته (" + removedChildAds + " آگهی)"
+                : "";
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "message", "دسته‌بندی و " + adsInCategory.size() + " آگهی مرتبط با آن حذف شد."
+                "message", "دسته‌بندی، " + adsInCategory.size() + " آگهی" + extra + " حذف شد."
         ));
     }
 

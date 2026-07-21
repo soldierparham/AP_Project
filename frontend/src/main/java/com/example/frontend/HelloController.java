@@ -245,13 +245,40 @@ public class HelloController {
                 .thenAccept(response -> {
                     if (response.statusCode() != 200) return;
 
-                    java.util.List<String> names = new java.util.ArrayList<>();
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
+                    // تجزیه دسته‌بندی‌ها همراه با شناسه و والد (برای زیردسته‌بندی)
+                    java.util.List<Long> catIds = new java.util.ArrayList<>();
+                    java.util.List<String> catNames = new java.util.ArrayList<>();
+                    java.util.List<Long> catParents = new java.util.ArrayList<>();
+                    java.util.regex.Matcher obj = java.util.regex.Pattern
+                            .compile("\\{[^{}]*\\}")
                             .matcher(response.body());
-                    while (m.find()) {
-                        String n = m.group(1).trim();
-                        if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                    while (obj.find()) {
+                        String o = obj.group();
+                        java.util.regex.Matcher mi = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*(\\d+)").matcher(o);
+                        java.util.regex.Matcher mn = java.util.regex.Pattern.compile("\"name\"\\s*:\\s*\"([^\"]+)\"").matcher(o);
+                        java.util.regex.Matcher mp = java.util.regex.Pattern.compile("\"parentId\"\\s*:\\s*(\\d+)").matcher(o);
+                        if (!mi.find() || !mn.find()) continue;
+                        catIds.add(Long.parseLong(mi.group(1)));
+                        catNames.add(mn.group(1).trim());
+                        catParents.add(mp.find() ? Long.parseLong(mp.group(1)) : -1L);
+                    }
+
+                    // ترتیب نمایش: هر دسته اصلی و بلافاصله زیردسته‌های آن
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    java.util.Set<String> childCats = new java.util.HashSet<>();
+                    for (int i = 0; i < catNames.size(); i++) {
+                        if (catParents.get(i) >= 0 && catIds.contains(catParents.get(i))) continue;
+                        String parentName = catNames.get(i);
+                        if (parentName.isEmpty() || names.contains(parentName)) continue;
+                        names.add(parentName);
+                        long pid = catIds.get(i);
+                        for (int j = 0; j < catNames.size(); j++) {
+                            String childName = catNames.get(j);
+                            if (catParents.get(j) == pid && !childName.isEmpty() && !names.contains(childName)) {
+                                names.add(childName);
+                                childCats.add(childName);
+                            }
+                        }
                     }
                     if (names.isEmpty()) return;
 
@@ -270,6 +297,10 @@ public class HelloController {
                             btn.setAlignment(javafx.geometry.Pos.BASELINE_RIGHT);
                             btn.setMaxWidth(Double.MAX_VALUE);
                             btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;");
+                            // زیردسته‌ها با کمی تورفتگی از سمت راست نمایش داده می‌شوند
+                            if (childCats.contains(name)) {
+                                btn.setPadding(new javafx.geometry.Insets(2, 22, 2, 2));
+                            }
                             btn.setOnAction(this::onCategoryClick);
                             categoryVBox.getChildren().add(btn);
                         }

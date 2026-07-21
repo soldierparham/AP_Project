@@ -3,6 +3,7 @@ package com.example.backend.service;
 import com.example.backend.model.Advertisement;
 import com.example.backend.model.Conversation;
 import com.example.backend.repository.AdvertisementRepository;
+import com.example.backend.repository.CategoryRepository;
 import com.example.backend.repository.ConversationRepository;
 import com.example.backend.repository.MessageRepository;
 import com.example.backend.repository.FavoriteRepository;
@@ -37,6 +38,29 @@ public class AdvertisementService {
     @Autowired
     private RatingRepository ratingRepository;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    /** نام دسته + نام همه زیردسته‌های آن (برای فیلتر سلسله‌مراتبی دسته‌بندی) */
+    private java.util.Set<String> expandCategoryWithChildren(String category) {
+        java.util.Set<String> names = new java.util.HashSet<>();
+        names.add(category.toLowerCase());
+        categoryRepository.findByNameIgnoreCase(category).ifPresent(cat ->
+                categoryRepository.findByParentId(cat.getId())
+                        .forEach(child -> names.add(child.getName().toLowerCase())));
+        return names;
+    }
+
+    // دریافت تمام آگهی‌ها
+    public List<Advertisement> getAllAdvertisements() {
+        return advertisementRepository.findAll();
+    }
+
+    // دریافت آگهی‌های کاربران دیگر (به جز کاربر جاری) — بدون فیلتر وضعیت (نسخه قدیمی)
+    public List<Advertisement> getAdsExceptOwner(String ownerUsername) {
+        return advertisementRepository.findByOwnerUsernameNot(ownerUsername);
+    }
+
     /**
      * 🔍 جدید: دریافت آگهی‌های «فعال» دیگران + جستجو، فیلتر ترکیبی و مرتب‌سازی (مطابق سند پروژه)
      * - فقط آگهی‌هایی با وضعیت ACTIVE برای عموم قابل مشاهده هستند
@@ -61,7 +85,10 @@ public class AdvertisementService {
                     (a.getDescription() != null && a.getDescription().toLowerCase().contains(q)));
         }
         if (category != null && !category.isBlank()) {
-            stream = stream.filter(a -> category.equalsIgnoreCase(a.getCategory()));
+            // فیلتر دسته + همه زیردسته‌های آن
+            java.util.Set<String> categoryNames = expandCategoryWithChildren(category);
+            stream = stream.filter(a -> a.getCategory() != null
+                    && categoryNames.contains(a.getCategory().toLowerCase()));
         }
         if (city != null && !city.isBlank()) {
             stream = stream.filter(a -> city.equalsIgnoreCase(a.getCity()));
@@ -93,6 +120,10 @@ public class AdvertisementService {
         return stream.sorted(comparator).collect(Collectors.toList());
     }
 
+    // دریافت آگهی‌های اختصاصی یک کاربر (با هر وضعیتی، تا مالک وضعیت آگهی خود را ببیند)
+    public List<Advertisement> getAdsByUsername(String username) {
+        return advertisementRepository.findByOwnerUsername(username);
+    }
 
     /**
      * 🔍 جدید: آگهی‌های خود کاربر + جستجو، فیلتر ترکیبی و مرتب‌سازی
@@ -114,7 +145,10 @@ public class AdvertisementService {
                     (a.getDescription() != null && a.getDescription().toLowerCase().contains(q)));
         }
         if (category != null && !category.isBlank()) {
-            stream = stream.filter(a -> category.equalsIgnoreCase(a.getCategory()));
+            // فیلتر دسته + همه زیردسته‌های آن
+            java.util.Set<String> categoryNames = expandCategoryWithChildren(category);
+            stream = stream.filter(a -> a.getCategory() != null
+                    && categoryNames.contains(a.getCategory().toLowerCase()));
         }
         if (city != null && !city.isBlank()) {
             stream = stream.filter(a -> city.equalsIgnoreCase(a.getCity()));

@@ -336,6 +336,10 @@ public class AdminPanelController {
 
     // ---------------------------------------------------------- تب دسته‌بندی‌ها
 
+    // زیردسته‌بندی: کمبوی انتخاب والد + نگاشت نام والد به شناسه
+    private javafx.scene.control.ComboBox<String> categoryParentCombo;
+    private final java.util.Map<String, Long> parentCategoryIds = new java.util.LinkedHashMap<>();
+
     private Node buildCategoriesTab() {
         categoriesBox = new VBox(10);
 
@@ -351,14 +355,24 @@ public class AdminPanelController {
             if (name.isEmpty()) {
                 return;
             }
-            String body = "{\"name\":\"" + name.replace("\"", "\\\"") + "\"}";
+            String sel = categoryParentCombo.getValue();
+            Long parentId = (sel == null || "— دسته اصلی —".equals(sel)) ? null : parentCategoryIds.get(sel);
+            String body = "{\"name\":\"" + name.replace("\"", "\\\"") + "\""
+                    + (parentId != null ? ",\"parentId\":" + parentId : "") + "}";
             postAdminAction("/api/admin/categories", body, () -> {
                 txtName.clear();
+                categoryParentCombo.setValue("— دسته اصلی —");
                 loadCategories();
             });
         });
 
-        HBox controls = new HBox(10, txtName, btnAdd);
+        // انتخاب دسته والد برای ساخت زیردسته (پیش‌فرض: دسته اصلی)
+        categoryParentCombo = new javafx.scene.control.ComboBox<>();
+        categoryParentCombo.getItems().add("— دسته اصلی —");
+        categoryParentCombo.setValue("— دسته اصلی —");
+        categoryParentCombo.setStyle("-fx-background-color: #3b286b; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';");
+
+        HBox controls = new HBox(10, txtName, categoryParentCombo, btnAdd);
         controls.setPadding(new Insets(10, 15, 0, 15));
 
         VBox container = new VBox(10, controls, wrapScroll(categoriesBox));
@@ -383,40 +397,79 @@ public class AdminPanelController {
                     }
                     try {
                         JsonNode data = mapper.readTree(response.body()).path("data");
+
+                        // تفکیک دسته‌های اصلی و زیردسته‌ها
+                        java.util.List<JsonNode> parents = new java.util.ArrayList<>();
+                        java.util.Map<Long, java.util.List<JsonNode>> childrenOf = new java.util.LinkedHashMap<>();
                         for (JsonNode category : data) {
-                            long id = category.path("id").asLong();
-                            String catName = category.path("name").asText("-");
+                            if (category.hasNonNull("parentId")) {
+                                childrenOf.computeIfAbsent(category.path("parentId").asLong(),
+                                        k -> new java.util.ArrayList<>()).add(category);
+                            } else {
+                                parents.add(category);
+                            }
+                        }
 
-                            Label lblName = new Label("\ud83d\uddc2\ufe0f " + catName);
-                            lblName.setStyle("-fx-text-fill: white; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+                        // به‌روزرسانی لیست والدها در کمبوی افزودن زیردسته
+                        parentCategoryIds.clear();
+                        for (JsonNode parent : parents) {
+                            parentCategoryIds.put(parent.path("name").asText("-"), parent.path("id").asLong());
+                        }
+                        if (categoryParentCombo != null) {
+                            String prevSel = categoryParentCombo.getValue();
+                            categoryParentCombo.getItems().setAll("— دسته اصلی —");
+                            categoryParentCombo.getItems().addAll(parentCategoryIds.keySet());
+                            categoryParentCombo.setValue(
+                                    categoryParentCombo.getItems().contains(prevSel) ? prevSel : "— دسته اصلی —");
+                        }
 
-                            Region spacer = new Region();
-                            HBox.setHgrow(spacer, Priority.ALWAYS);
-
-                            HBox row = new HBox(10);
-                            row.setAlignment(Pos.CENTER_LEFT);
-                            row.setPadding(new Insets(10));
-                            row.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
-
-                            Button btnEdit = new Button("✏️ ویرایش");
-                            btnEdit.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
-                            btnEdit.setOnAction(e -> showInlineRename(row, catName,
-                                    newName -> putAdminAction("/api/admin/categories/" + id,
-                                            "{\"name\":\"" + newName.replace("\"", "\\\"") + "\"}",
-                                            this::loadCategories),
-                                    this::loadCategories));
-
-                            Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
-                            btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
-                            btnDelete.setOnAction(e -> deleteAdminAction("/api/admin/categories/" + id, this::loadCategories));
-
-                            row.getChildren().addAll(lblName, spacer, btnEdit, btnDelete);
-                            categoriesBox.getChildren().add(row);
+                        for (JsonNode parent : parents) {
+                            addCategoryRow(parent, false);
+                            for (JsonNode child : childrenOf.getOrDefault(parent.path("id").asLong(),
+                                    java.util.Collections.emptyList())) {
+                                addCategoryRow(child, true);
+                            }
                         }
                     } catch (Exception ex) {
                         categoriesBox.getChildren().add(mutedLabel("خطا در پردازش اطلاعات."));
                     }
                 }));
+    }
+
+    // ساخت ردیف یک دسته‌بندی (زیردسته‌ها با علامت و تورفتگی)
+    private void addCategoryRow(JsonNode category, boolean isChild) {
+        long id = category.path("id").asLong();
+        String catName = category.path("name").asText("-");
+
+        Label lblName = new Label((isChild ? "↳ " : "\ud83d\uddc2\ufe0f ") + catName);
+        lblName.setStyle("-fx-text-fill: " + (isChild ? "#b9a6df" : "white") + "; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(10));
+        row.setStyle("-fx-background-color: " + (isChild ? "#1d1436" : "#241942") + "; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
+        if (isChild) {
+            // تورفتگی ردیف زیردسته زیر دسته والد
+            VBox.setMargin(row, new Insets(0, 0, 0, 30));
+        }
+
+        Button btnEdit = new Button("✏️ ویرایش");
+        btnEdit.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnEdit.setOnAction(e -> showInlineRename(row, catName,
+                newName -> putAdminAction("/api/admin/categories/" + id,
+                        "{\"name\":\"" + newName.replace("\"", "\\\"") + "\"}",
+                        this::loadCategories),
+                this::loadCategories));
+
+        Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
+        btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnDelete.setOnAction(e -> deleteAdminAction("/api/admin/categories/" + id, this::loadCategories));
+
+        row.getChildren().addAll(lblName, spacer, btnEdit, btnDelete);
+        categoriesBox.getChildren().add(row);
     }
 
     // ---------------------------------------------------------- تب شهرها
