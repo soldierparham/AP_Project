@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * 🛡️ پنل مدیریت (فقط برای کاربران با نقش ADMIN) — مطابق سند پروژه:
  * - بررسی و تایید/رد/حذف آگهی‌ها
  * - مدیریت کاربران (مسدود/رفع مسدودی)
- * - مدیریت دسته‌بندی‌ها
+ * - مدیریت دسته‌بندی‌ها (🚫 جدید: با حذف دسته‌بندی، همه آگهی‌های آن دسته نیز حذف می‌شوند)
  * - داشبورد آماری (امتیازی)
  * نکته امنیتی: نقش کاربر از دیتابیس خوانده می‌شود نه از توکن، تا تغییر نقش فوراً اعمال شود.
  */
@@ -54,7 +54,7 @@ public class AdminController {
 
     // ---------- ابزار کمکی: کنترل دسترسی مدیر ----------
 
-    private ResponseEntity<?> checkAdminAccess(Principal principal) {
+    private ResponseEntity checkAdminAccess(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
@@ -73,11 +73,11 @@ public class AdminController {
      * لیست آگهی‌ها بر اساس وضعیت (پیش‌فرض: PENDING ، مقدار ALL = همه)
      */
     @GetMapping("/advertisements")
-    public ResponseEntity<?> listAdvertisements(
+    public ResponseEntity listAdvertisements(
             @RequestParam(required = false, defaultValue = "PENDING") String status,
             Principal principal) {
 
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         List<Advertisement> ads = "ALL".equalsIgnoreCase(status)
@@ -95,8 +95,8 @@ public class AdminController {
      */
     @Transactional
     @PostMapping("/advertisements/{id}/approve")
-    public ResponseEntity<?> approveAdvertisement(@PathVariable Long id, Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity approveAdvertisement(@PathVariable Long id, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         Optional<Advertisement> adOpt = advertisementRepository.findById(id);
@@ -122,12 +122,12 @@ public class AdminController {
      */
     @Transactional
     @PostMapping("/advertisements/{id}/reject")
-    public ResponseEntity<?> rejectAdvertisement(
+    public ResponseEntity rejectAdvertisement(
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, Object> body,
             Principal principal) {
 
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         Optional<Advertisement> adOpt = advertisementRepository.findById(id);
@@ -158,8 +158,8 @@ public class AdminController {
      */
     @Transactional
     @DeleteMapping("/advertisements/{id}")
-    public ResponseEntity<?> deleteAdvertisement(@PathVariable Long id, Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity deleteAdvertisement(@PathVariable Long id, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         if (advertisementRepository.findById(id).isEmpty()) {
@@ -178,8 +178,8 @@ public class AdminController {
     // ---------- مدیریت کاربران ----------
 
     @GetMapping("/users")
-    public ResponseEntity<?> listUsers(Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity listUsers(Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         List<Map<String, Object>> users = userRepository.findAll().stream().map(u -> {
@@ -205,8 +205,8 @@ public class AdminController {
      */
     @Transactional
     @PostMapping("/users/{id}/block")
-    public ResponseEntity<?> blockUser(@PathVariable Long id, Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity blockUser(@PathVariable Long id, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         Optional<User> userOpt = userRepository.findById(id);
@@ -233,8 +233,8 @@ public class AdminController {
 
     @Transactional
     @PostMapping("/users/{id}/unblock")
-    public ResponseEntity<?> unblockUser(@PathVariable Long id, Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity unblockUser(@PathVariable Long id, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         Optional<User> userOpt = userRepository.findById(id);
@@ -256,8 +256,8 @@ public class AdminController {
     // ---------- مدیریت دسته‌بندی‌ها ----------
 
     @GetMapping("/categories")
-    public ResponseEntity<?> listCategories(Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity listCategories(Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         return ResponseEntity.ok(Map.of(
@@ -268,8 +268,8 @@ public class AdminController {
 
     @Transactional
     @PostMapping("/categories")
-    public ResponseEntity<?> addCategory(@RequestBody Map<String, Object> body, Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity addCategory(@RequestBody Map<String, Object> body, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         if (body == null || body.get("name") == null || body.get("name").toString().isBlank()) {
@@ -292,30 +292,45 @@ public class AdminController {
         ));
     }
 
+    /**
+     * 🗑️ حذف دسته‌بندی
+     * 🚫 جدید: همه آگهی‌های این دسته‌بندی نیز به همراه وابستگی‌ها (گفتگوها، پیام‌ها، علاقه‌مندی‌ها، امتیازها) حذف می‌شوند
+     */
     @Transactional
     @DeleteMapping("/categories/{id}")
-    public ResponseEntity<?> deleteCategory(@PathVariable Long id, Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity deleteCategory(@PathVariable Long id, Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
-        if (categoryRepository.findById(id).isEmpty()) {
+        Optional<Category> catOpt = categoryRepository.findById(id);
+        if (catOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("message", "دسته‌بندی مورد نظر یافت نشد.", "status", 404));
+        }
+
+        String categoryName = catOpt.get().getName();
+
+        // 🗑️ حذف تمام آگهی‌های این دسته‌بندی (با پاکسازی کامل وابستگی‌ها از طریق سرویس)
+        List<Advertisement> adsInCategory = advertisementRepository.findAll().stream()
+                .filter(a -> a.getCategory() != null && a.getCategory().equalsIgnoreCase(categoryName))
+                .collect(Collectors.toList());
+        for (Advertisement ad : adsInCategory) {
+            advertisementService.deleteAd(ad.getId());
         }
 
         categoryRepository.deleteById(id);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "message", "دسته‌بندی حذف شد."
+                "message", "دسته‌بندی و " + adsInCategory.size() + " آگهی مرتبط با آن حذف شد."
         ));
     }
 
     // ---------- داشبورد آماری (امتیازی) ----------
 
     @GetMapping("/stats")
-    public ResponseEntity<?> getStats(Principal principal) {
-        ResponseEntity<?> denied = checkAdminAccess(principal);
+    public ResponseEntity getStats(Principal principal) {
+        ResponseEntity denied = checkAdminAccess(principal);
         if (denied != null) return denied;
 
         long blockedUsers = userRepository.findAll().stream()
