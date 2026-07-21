@@ -9,6 +9,8 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.effect.DropShadow?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 
 <StackPane prefHeight="760.0" prefWidth="440.0" style="-fx-background-color: linear-gradient(to bottom right, #160f29, #241942);" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterController">
     <children>
@@ -20,11 +22,11 @@
 
                 <VBox alignment="CENTER" spacing="4.0">
                     <children>
-                        <Label text="Create Account" textFill="#ffc83b">
-                            <font>
-                                <Font name="System Bold" size="22.0" />
-                            </font>
-                        </Label>
+                        <ImageView fitHeight="60.0" pickOnBounds="true" preserveRatio="true">
+                            <image>
+                                <Image url="@logo.png" />
+                            </image>
+                        </ImageView>
                         <Label text="اطلاعات خود را برای ثبت‌نام وارد کنید" textFill="#b9a6df">
                             <font>
                                 <Font size="12.0" />
@@ -106,9 +108,6 @@
                 <VBox alignment="CENTER" spacing="6.0">
                     <children>
                         <Button mnemonicParsing="false" onAction="#onGoToLoginClick" style="-fx-background-color: transparent; -fx-text-fill: #ffc83b; -fx-cursor: hand;" text="حساب کاربری دارید؟ وارد شوید">
-                            <font><Font size="12.0" /></font>
-                        </Button>
-                        <Button mnemonicParsing="false" onAction="#onCancelClick" style="-fx-background-color: transparent; -fx-text-fill: #8575a3; -fx-cursor: hand;" text="انصراف">
                             <font><Font size="12.0" /></font>
                         </Button>
                     </children>
