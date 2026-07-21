@@ -1,5 +1,6 @@
 package com.example.frontend;
 
+import com.example.frontend.service.HttpService;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
@@ -84,6 +85,10 @@ public class HelloController {
     private String filterSort = "newest";
 
     // ---------------------------------------------------------- شروع
+
+    // 💾 کش کردن اطلاعات آگهی‌ها برای جستجوی فوق‌سریع و محلی بدون تاخیر سرور
+    private String cachedAdsJson = "";
+    private boolean cachedIsMyAdsView = false;
 
     @FXML
     public void initialize() {
@@ -678,6 +683,21 @@ public class HelloController {
                 openAdDetailsPage(finalAdId, title, description, rawPrice, owner, imageUrl));
 
         return card;
+    }
+    private String extractImageUrlFromJson(String json) {
+        try {
+            int index = json.indexOf("\"imageUrl\"");
+            if (index == -1) return null;
+            int colonIndex = json.indexOf(":", index);
+            if (colonIndex == -1) return null;
+            int startQuote = json.indexOf("\"", colonIndex);
+            if (startQuote == -1) return null;
+            int endQuote = json.indexOf("\"", startQuote + 1);
+            if (endQuote == -1) return null;
+            return json.substring(startQuote + 1, endQuote);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String statusToPersian(String status) {

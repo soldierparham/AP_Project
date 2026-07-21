@@ -71,6 +71,14 @@ public class Advertisement {
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
 
+    // 🟢 گتر و ستر برای شهر
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    // 🟢 گتر و ستر برای دسته‌بندی
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
     public String getOwnerUsername() { return ownerUsername; }
     public void setOwnerUsername(String ownerUsername) { this.ownerUsername = ownerUsername; }
 
