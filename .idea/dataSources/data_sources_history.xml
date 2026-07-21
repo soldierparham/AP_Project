@@ -8,9 +8,10 @@
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <imported>true</imported>
-      <remarks>C:/Users/parha/Desktop/java/Project/backend/src/main/resources/application.properties</remarks>
+      <remarks>C:/Users/parha/Desktop/Project/backend/src/main/resources/application.properties</remarks>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
       <jdbc-url>jdbc:sqlite:./secondhand.db</jdbc-url>
+      <auth-provider>no-auth</auth-provider>
       <schema-mapping>
         <introspection-scope>
           <node kind="schema" qname="@" />

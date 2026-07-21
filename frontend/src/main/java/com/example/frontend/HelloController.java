@@ -255,6 +255,11 @@ public class HelloController {
                                 break;
                             }
                         }
+                        // اگر دسته فعال توسط ادمین حذف شده باشد، فیلتر پاک و لیست تازه می‌شود
+                        if (!filterCategory.isBlank() && activeBtn == null) {
+                            filterCategory = "";
+                            refreshCurrentListView();
+                        }
                         updateCategoryButtonStyles(activeBtn);
                     });
                 });
