@@ -59,20 +59,23 @@ public class AdminPanelController {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(20));
 
-        // تب‌ها
-        TabPane tabPane = new TabPane();
-        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.setStyle("-fx-background-color: transparent;");
+        BorderPane contentHolder = new BorderPane();
 
-        Tab adsTab = new Tab("\ud83d\udd52 مدیریت آگهی‌ها", buildAdsTab());
-        Tab usersTab = new Tab("\ud83d\udc65 کاربران", buildUsersTab());
-        Tab categoriesTab = new Tab("\ud83d\uddc2\ufe0f دسته‌بندی‌ها", buildCategoriesTab());
-        Tab statsTab = new Tab("\ud83d\udcca آمار", buildStatsTab());
+        Button adsTabBtn = buildTabButton("\ud83d\udd52 مدیریت آگهی‌ها", buildAdsTab(), contentHolder);
+        Button usersTabBtn = buildTabButton("\ud83d\udc65 کاربران", buildUsersTab(), contentHolder);
+        Button categoriesTabBtn = buildTabButton("\ud83d\uddc2\ufe0f دسته‌بندی‌ها", buildCategoriesTab(), contentHolder);
+        Button statsTabBtn = buildTabButton("\ud83d\udcca آمار", buildStatsTab(), contentHolder);
 
-        tabPane.getTabs().addAll(adsTab, usersTab, categoriesTab, statsTab);
+        HBox tabBar = new HBox(10, adsTabBtn, usersTabBtn, categoriesTabBtn, statsTabBtn);
+        tabBar.setPadding(new Insets(0, 20, 12, 20));
+
+        VBox centerBox = new VBox(tabBar, contentHolder);
+        VBox.setVgrow(contentHolder, Priority.ALWAYS);
 
         root.setTop(header);
-        root.setCenter(tabPane);
+        root.setCenter(centerBox);
+
+        adsTabBtn.fire();
 
         // بارگذاری اولیه داده‌ها
         loadAds("PENDING");
@@ -81,6 +84,25 @@ public class AdminPanelController {
         loadStats();
 
         return root;
+    }
+
+    private final java.util.List<Button> tabButtons = new java.util.ArrayList<>();
+
+    private static final String TAB_NORMAL_STYLE = "-fx-background-color: #241942; -fx-text-fill: #b9a6df; -fx-background-radius: 8; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 6 16 6 16; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;";
+    private static final String TAB_ACTIVE_STYLE = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-font-weight: bold; -fx-background-radius: 8; -fx-border-color: #ffc83b; -fx-border-radius: 8; -fx-border-width: 1.5; -fx-padding: 6 16 6 16; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;";
+
+    private Button buildTabButton(String text, Node content, BorderPane holder) {
+        Button b = new Button(text);
+        b.setStyle(TAB_NORMAL_STYLE);
+        b.setOnAction(e -> {
+            holder.setCenter(content);
+            for (Button other : tabButtons) {
+                other.setStyle(TAB_NORMAL_STYLE);
+            }
+            b.setStyle(TAB_ACTIVE_STYLE);
+        });
+        tabButtons.add(b);
+        return b;
     }
 
     private ScrollPane wrapScroll(VBox content) {
@@ -121,6 +143,9 @@ public class AdminPanelController {
         statusCombo = new ComboBox<>();
         statusCombo.getItems().addAll("PENDING", "ACTIVE", "REJECTED", "SOLD", "ALL");
         statusCombo.setValue("PENDING");
+        statusCombo.setPrefHeight(34);
+        statusCombo.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        HelloController.styleComboBox(statusCombo);
         statusCombo.setOnAction(e -> loadAds(statusCombo.getValue()));
 
         Button btnRefresh = new Button("\ud83d\udd04 بروزرسانی");
@@ -280,8 +305,8 @@ public class AdminPanelController {
         String status = user.path("status").asText("ACTIVE");
 
         VBox card = createCard();
-        card.getChildren().add(infoLabel("\ud83d\udc64 " + user.path("name").asText("-")
-                + " (" + user.path("username").asText("-") + ")"));
+        card.getChildren().add(infoLabel("\ud83d\udc64 " + user.path("name").asText("-")));
+        card.getChildren().add(mutedLabel("نام کاربری: " + user.path("username").asText("-")));
         card.getChildren().add(mutedLabel("شماره: " + user.path("phoneNumber").asText("-")
                 + "  |  ایمیل: " + user.path("email").asText("-")
                 + "  |  نقش: " + role

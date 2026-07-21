@@ -8,6 +8,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
@@ -22,6 +23,40 @@ public class RegisterController {
     @FXML private TextField phoneField;
     @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
+    @FXML private PasswordField confirmPasswordField;
+    @FXML private TextField passwordVisibleField;
+    @FXML private Button btnTogglePassword;
+
+    /**
+     * 🔗 هم‌گام‌سازی فیلد رمز مخفی و فیلد رمز نمایان (برای دکمه چشم)
+     */
+    @FXML
+    private void initialize() {
+        if (passwordVisibleField != null && passwordField != null) {
+            passwordVisibleField.textProperty().bindBidirectional(passwordField.textProperty());
+        }
+        restrictPasswordInput(passwordField);
+        restrictPasswordInput(passwordVisibleField);
+        restrictPasswordInput(confirmPasswordField);
+    }
+
+    // 🚫 جلوگیری از تایپ فاصله و کاراکترهای غیرمجاز در فیلد رمز عبور (تایپ و paste هر دو فیلتر می‌شوند)
+    private void restrictPasswordInput(javafx.scene.control.TextInputControl field) {
+        if (field == null) return;
+        field.setTextFormatter(new javafx.scene.control.TextFormatter<String>(change ->
+                change.getControlNewText().matches("[A-Za-z0-9!@#$%^&*_.\\-]*") ? change : null));
+    }
+
+    /**
+     * 👁 نمایش یا مخفی کردن رمز عبور با دکمه چشم
+     */
+    @FXML
+    private void onTogglePasswordClick() {
+        boolean show = !passwordVisibleField.isVisible();
+        passwordVisibleField.setVisible(show);
+        passwordField.setVisible(!show);
+        btnTogglePassword.setText(show ? "🙈" : "👁");
+    }
 
     /**
      * عملیات کلیک روی دکمه "ثبت‌نام و ایجاد حساب"
@@ -34,9 +69,10 @@ public class RegisterController {
         String phone = phoneField.getText().trim();
         String email = emailField.getText().trim();
         String password = passwordField.getText().trim();
+        String confirmPassword = (confirmPasswordField != null) ? confirmPasswordField.getText().trim() : "";
 
         // ۲. اعتبارسنجی خالی نبودن فیلدها
-        if (name.isEmpty() || username.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty()) {
+        if (name.isEmpty() || username.isEmpty() || phone.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "خطای ورودی", "لطفاً تمامی فیلدها را تکمیل کنید.");
             return;
         }
@@ -71,6 +107,19 @@ public class RegisterController {
             return;
         }
 
+        // 🔁 بررسی تطابق رمز عبور و تکرار آن
+        // بررسی کاراکترهای مجاز رمز عبور
+        if (!password.matches("[A-Za-z0-9!@#$%^&*_.\\-]+")) {
+            showAlert(Alert.AlertType.WARNING, "کاراکتر غیرمجاز",
+                    "رمز عبور نباید شامل فاصله یا کاراکتر غیرمجاز باشد.\nفقط حروف انگلیسی، اعداد و علائم ! @ # $ % ^ & * _ . - مجاز هستند.");
+            return;
+        }
+
+        if (!password.equals(confirmPassword)) {
+            showAlert(Alert.AlertType.WARNING, "عدم تطابق رمز عبور", "رمز عبور و تکرار آن یکسان نیستند. لطفاً دوباره بررسی کنید.");
+            return;
+        }
+
         // ۶. ساخت ساختار JSON و ارسال به اسپرینگ بوت (در صورت تایید تمام فرمت‌ها)
         String jsonBody = String.format(
                 "{\"name\":\"%s\",\"username\":\"%s\",\"phoneNumber\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
@@ -97,6 +146,7 @@ public class RegisterController {
                     return null;
                 });
     }
+
     /**
      * دکمه جابه‌جایی و بازگشت به صفحه ورود
      */
@@ -115,6 +165,9 @@ public class RegisterController {
         phoneField.clear();
         emailField.clear();
         passwordField.clear();
+        if (confirmPasswordField != null) {
+            confirmPasswordField.clear();
+        }
     }
 
     /**
@@ -133,8 +186,6 @@ public class RegisterController {
             e.printStackTrace();
         }
     }
-
-
 
     /**
      * متد کمکی برای نمایش پنجره‌های پاپ‌آپ (Alert)

@@ -70,7 +70,39 @@ public class RegisterAdController {
                 "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات"
         );
 
+        // 🎨 هماهنگ‌سازی رنگ کمبوباکس‌ها با تم برنامه
+        HelloController.styleComboBox(cityInput);
+        HelloController.styleComboBox(categoryInput);
+
+        // 🗂️ دریافت دسته‌بندی‌های به‌روز از سرور (شامل دسته‌های ادمین)
+        loadCategoriesFromServer();
+
         // thumbnails از onSelectImageClick بارگذاری می‌شوند
+    }
+
+    // 🗂 دریافت لیست دسته‌بندی‌ها از سرور تا دسته‌های جدید ادمین هم قابل انتخاب باشند
+    private void loadCategoriesFromServer() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(HelloController.BASE_URL + "/api/categories"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200) return;
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
+                            .matcher(response.body());
+                    while (m.find()) {
+                        String n = m.group(1).trim();
+                        if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                    }
+                    if (names.isEmpty()) return;
+                    javafx.application.Platform.runLater(() ->
+                            categoryInput.getItems().setAll(names));
+                });
     }
 
     public void setHelloController(HelloController helloController) {

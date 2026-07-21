@@ -48,8 +48,8 @@
                 <!-- 🔍 فیلترها و مرتب‌سازی در ردیف بالا (به‌جای دکمه جداگانه) -->
                 <TextField fx:id="minPriceField" onKeyReleased="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="85.0" promptText="از قیمت" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;" />
                 <TextField fx:id="maxPriceField" onKeyReleased="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="85.0" promptText="تا قیمت" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;" />
-                <ComboBox fx:id="sortFilterCombo" onAction="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="115.0" promptText="مرتب‌سازی" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" />
-                <ComboBox fx:id="cityFilterCombo" onAction="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="115.0" promptText="همه شهرها" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-cursor: hand;" />
+                <ComboBox fx:id="sortFilterCombo" onAction="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="115.0" promptText="مرتب‌سازی" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;" />
+                <ComboBox fx:id="cityFilterCombo" onAction="#onTopBarFilterChanged" prefHeight="35.0" prefWidth="115.0" promptText="همه شهرها" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;" />
 
                 <ImageView fitHeight="44.0" pickOnBounds="true" preserveRatio="true" onMouseClicked="#showHomeScreen" style="-fx-cursor: hand;">
                     <image>

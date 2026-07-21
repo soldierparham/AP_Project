@@ -173,7 +173,7 @@ public class AdvertisementController {
             }
             long priceValue;
             try {
-                priceValue = Long.parseLong(adData.get("price").toString().replaceAll("\\..*", ""));
+                priceValue = Long.parseLong(adData.get("price").toString().split("\\.|")[0]);
             } catch (NumberFormatException nfe) {
                 return ResponseEntity.badRequest().body(Map.of("message", "قیمت باید یک عدد معتبر باشد."));
             }

@@ -19,6 +19,38 @@ public class LoginController {
 
     @FXML private TextField phoneField;
     @FXML private PasswordField passwordField;
+    @FXML private TextField passwordVisibleField;
+    @FXML private Button btnTogglePassword;
+
+    /**
+     * 🔗 هم‌گام‌سازی فیلد رمز مخفی و فیلد رمز نمایان (برای دکمه چشم)
+     */
+    @FXML
+    private void initialize() {
+        if (passwordVisibleField != null && passwordField != null) {
+            passwordVisibleField.textProperty().bindBidirectional(passwordField.textProperty());
+        }
+        restrictPasswordInput(passwordField);
+        restrictPasswordInput(passwordVisibleField);
+    }
+
+    // 🚫 جلوگیری از تایپ فاصله و کاراکترهای غیرمجاز در فیلد رمز عبور (تایپ و paste هر دو فیلتر می‌شوند)
+    private void restrictPasswordInput(javafx.scene.control.TextInputControl field) {
+        if (field == null) return;
+        field.setTextFormatter(new javafx.scene.control.TextFormatter<String>(change ->
+                change.getControlNewText().matches("[A-Za-z0-9!@#$%^&*_.\\-]*") ? change : null));
+    }
+
+    /**
+     * 👁 نمایش یا مخفی کردن رمز عبور با دکمه چشم
+     */
+    @FXML
+    private void onTogglePasswordClick() {
+        boolean show = !passwordVisibleField.isVisible();
+        passwordVisibleField.setVisible(show);
+        passwordField.setVisible(!show);
+        btnTogglePassword.setText(show ? "🙈" : "👁");
+    }
 
     /**
      * عملیات کلیک روی دکمه ورود
@@ -205,19 +237,19 @@ public class LoginController {
 
         dialogPane.setStyle(
                 "-fx-background-color: " + backgroundColor + ";" +
-                        "-fx-border-color: " + borderColor + ";" +
-                        "-fx-border-width: 2px;" +
-                        "-fx-border-radius: 8px;" +
-                        "-fx-background-radius: 8px;" +
-                        "-fx-padding: 15px;"
+                "-fx-border-color: " + borderColor + ";" +
+                "-fx-border-width: 2px;" +
+                "-fx-border-radius: 8px;" +
+                "-fx-background-radius: 8px;" +
+                "-fx-padding: 15px;"
         );
 
         javafx.scene.Node contentLabel = dialogPane.lookup(".content.label");
         if (contentLabel != null) {
             contentLabel.setStyle(
                     "-fx-text-fill: " + textColor + ";" +
-                            "-fx-font-family: 'Segoe UI', 'Vazirmatn';" +
-                            "-fx-font-size: 14px;"
+                    "-fx-font-family: 'Segoe UI', 'Vazirmatn';" +
+                    "-fx-font-size: 14px;"
             );
         }
 
@@ -225,10 +257,10 @@ public class LoginController {
         if (okButton != null) {
             okButton.setStyle(
                     "-fx-background-color: " + buttonColor + ";" +
-                            "-fx-text-fill: white;" +
-                            "-fx-font-weight: bold;" +
-                            "-fx-background-radius: 5px;" +
-                            "-fx-padding: 6px 20px;"
+                    "-fx-text-fill: white;" +
+                    "-fx-font-weight: bold;" +
+                    "-fx-background-radius: 5px;" +
+                    "-fx-padding: 6px 20px;"
             );
         }
 

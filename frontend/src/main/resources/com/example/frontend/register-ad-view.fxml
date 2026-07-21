@@ -8,10 +8,13 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="TOP_RIGHT" spacing="20.0" style="-fx-background-color: #160f29;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterAdController">
+<ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" style="-fx-background-color: #160f29; -fx-background: #160f29; -fx-border-color: transparent; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterAdController">
+    <content>
+        <VBox alignment="TOP_RIGHT" spacing="20.0" style="-fx-background-color: #160f29;">
     <children>
         <Label text="&#x1F4DD; &#x062B;&#x0628;&#x062A; &#x0622;&#x06AF;&#x0647;&#x06CC; &#x062C;&#x062F;&#x06CC;&#x062F;" textFill="WHITE">
             <font><Font name="System Bold" size="20.0" /></font>
@@ -56,7 +59,7 @@
         <VBox alignment="TOP_RIGHT" spacing="6.0">
             <children>
                 <Label text="&#x062A;&#x0648;&#x636;&#x06CC;&#x062D;&#x0627;&#x062A; &#x0622;&#x06AF;&#x0647;&#x06CC;" textFill="#b9a6df"><font><Font size="13.0" /></font></Label>
-                <TextArea fx:id="descriptionInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="150.0" promptText="&#x062A;&#x0648;&#x636;&#x06CC;&#x062D;&#x0627;&#x062A; &#x06A9;&#x0627;&#x0645;&#x0644;&#x060C; &#x0648;&#x06CC;&#x0698;&#x06AF;&#x06CC;&#x200C;&#x0647;&#x0627; &#x0648; &#x0634;&#x0631;&#x0627;&#x06CC;&#x0637; &#x0641;&#x0631;&#x0648;&#x0634;..." style="-fx-control-inner-background: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6;" wrapText="true" />
+                <TextArea fx:id="descriptionInput" nodeOrientation="RIGHT_TO_LEFT" prefHeight="150.0" promptText="&#x062A;&#x0648;&#x636;&#x06CC;&#x062D;&#x0627;&#x062A; &#x06A9;&#x0627;&#x0645;&#x0644;&#x060C; &#x0648;&#x06CC;&#x0698;&#x06AF;&#x06CC;&#x200C;&#x0647;&#x0627; &#x0648; &#x0634;&#x0631;&#x0627;&#x06CC;&#x0637; &#x0641;&#x0631;&#x0648;&#x0634;..." style="-fx-control-inner-background: #241942; -fx-background-color: #241942; -fx-background-insets: 0; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-prompt-text-fill: #8b7ca6; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;" wrapText="true" />
             </children>
         </VBox>
 
@@ -93,3 +96,5 @@
     </children>
     <padding><Insets bottom="30.0" left="150.0" right="150.0" top="30.0" /></padding>
 </VBox>
+    </content>
+</ScrollPane>

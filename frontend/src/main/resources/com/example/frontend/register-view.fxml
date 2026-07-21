@@ -10,9 +10,9 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.effect.DropShadow?>
 
-<StackPane prefHeight="680.0" prefWidth="440.0" style="-fx-background-color: linear-gradient(to bottom right, #160f29, #241942);" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterController">
+<StackPane prefHeight="760.0" prefWidth="440.0" style="-fx-background-color: linear-gradient(to bottom right, #160f29, #241942);" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.frontend.RegisterController">
     <children>
-        <VBox alignment="CENTER" maxWidth="380.0" maxHeight="630.0" spacing="18.0" style="-fx-background-color: #241942; -fx-background-radius: 18; -fx-padding: 25 35 25 35;">
+        <VBox alignment="CENTER" maxWidth="380.0" maxHeight="710.0" spacing="18.0" style="-fx-background-color: #241942; -fx-background-radius: 18; -fx-padding: 25 35 25 35;">
             <effect>
                 <DropShadow blurType="THREE_PASS_BOX" color="#00000066" radius="25.0" width="50.0" />
             </effect>
@@ -76,7 +76,22 @@
                                 <Label text="رمز عبور" textFill="WHITE">
                                     <font><Font name="System Bold" size="11.0" /></font>
                                 </Label>
-                                <PasswordField fx:id="passwordField" prefHeight="38.0" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                                <StackPane maxWidth="1.7976931348623157E308">
+                                    <children>
+                                        <PasswordField fx:id="passwordField" prefHeight="38.0" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                                        <TextField fx:id="passwordVisibleField" prefHeight="38.0" visible="false" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
+                                        <Button fx:id="btnTogglePassword" mnemonicParsing="false" onAction="#onTogglePasswordClick" text="👁" StackPane.alignment="CENTER_RIGHT" style="-fx-background-color: transparent; -fx-text-fill: #8575a3; -fx-cursor: hand; -fx-font-size: 13px; -fx-padding: 0 10 0 10;" />
+                                    </children>
+                                </StackPane>
+                            </children>
+                        </VBox>
+
+                        <VBox alignment="TOP_RIGHT" spacing="4.0">
+                            <children>
+                                <Label text="تکرار رمز عبور" textFill="WHITE">
+                                    <font><Font name="System Bold" size="11.0" /></font>
+                                </Label>
+                                <PasswordField fx:id="confirmPasswordField" prefHeight="38.0" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
                             </children>
                         </VBox>
                     </children>

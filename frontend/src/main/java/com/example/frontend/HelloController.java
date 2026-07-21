@@ -1,6 +1,5 @@
 package com.example.frontend;
 
-import com.example.frontend.service.HttpService;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.Event;
@@ -79,16 +78,15 @@ public class HelloController {
 
     // 🔍 فیلترهای ترکیبی (امتیازی)
     private String filterCategory = "";
+
+    // 🗂️ دسته‌بندی‌های دریافت‌شده از سرور
+    private final java.util.List<String> serverCategories = new java.util.ArrayList<>();
     private String filterCity = "";
     private String filterMinPrice = "";
     private String filterMaxPrice = "";
     private String filterSort = "newest";
 
     // ---------------------------------------------------------- شروع
-
-    // 💾 کش کردن اطلاعات آگهی‌ها برای جستجوی فوق‌سریع و محلی بدون تاخیر سرور
-    private String cachedAdsJson = "";
-    private boolean cachedIsMyAdsView = false;
 
     @FXML
     public void initialize() {
@@ -100,22 +98,17 @@ public class HelloController {
             MainApplication.currentUsername = tokenUsername;
         }
 
-        MenuItem profileItem = new MenuItem("\ud83d\udc64 آگهی‌های من");
-        profileItem.setOnAction(e -> onLoadMyAdsClick());
+        hoverMenu.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-width: 1; -fx-border-radius: 10; -fx-padding: 6; -fx-selection-bar: transparent; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
 
-        MenuItem favoritesItem = new MenuItem("\u2b50 علاقه‌مندی‌های من");
-        favoritesItem.setOnAction(e -> showFavoritesScreen());
-
-        MenuItem logoutItem = new MenuItem("\ud83d\udeaa خروج از حساب");
-        logoutItem.setOnAction(e -> onLogoutClick());
+        CustomMenuItem profileItem = buildThemedMenuItem("\ud83d\udc64 آگهی‌های من", this::onLoadMyAdsClick);
+        CustomMenuItem favoritesItem = buildThemedMenuItem("\u2b50 علاقه‌مندی‌های من", this::showFavoritesScreen);
+        CustomMenuItem logoutItem = buildThemedMenuItem("\ud83d\udeaa خروج از حساب", this::onLogoutClick);
 
         hoverMenu.getItems().addAll(profileItem, favoritesItem);
 
         // 🛡️ فقط برای مدیر سیستم
         if ("ADMIN".equalsIgnoreCase(extractRoleFromToken())) {
-            MenuItem adminItem = new MenuItem("\ud83d\udee1\ufe0f پنل مدیریت");
-            adminItem.setOnAction(e -> openAdminPanel());
-            hoverMenu.getItems().add(adminItem);
+            hoverMenu.getItems().add(buildThemedMenuItem("\ud83d\udee1\ufe0f پنل مدیریت", this::openAdminPanel));
         }
 
         hoverMenu.getItems().add(logoutItem);
@@ -137,9 +130,60 @@ public class HelloController {
             sortFilterCombo.getItems().addAll("جدیدترین", "ارزان‌ترین", "گران‌ترین");
         }
 
+        // 🎨 هماهنگ‌سازی رنگ کمبوباکس‌های فیلتر/مرتب‌سازی با تم برنامه
+        if (cityFilterCombo != null) styleComboBox(cityFilterCombo);
+        if (sortFilterCombo != null) styleComboBox(sortFilterCombo);
+
         setActiveTopBarSection("home");
         updateCategoryButtonStyles(null);
         showHomeScreen();
+    }
+
+    private CustomMenuItem buildThemedMenuItem(String text, Runnable action) {
+        Label lbl = new Label(text);
+        final String normalStyle = "-fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px; -fx-padding: 8 14 8 14; -fx-background-color: transparent; -fx-background-radius: 6;";
+        final String hoverStyle = "-fx-text-fill: #ffc83b; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px; -fx-padding: 8 14 8 14; -fx-background-color: #3b286b; -fx-background-radius: 6;";
+        lbl.setStyle(normalStyle);
+        lbl.setMinWidth(180);
+        lbl.setPrefWidth(210);
+        lbl.setMaxWidth(Double.MAX_VALUE);
+        lbl.setCursor(Cursor.HAND);
+        lbl.setOnMouseEntered(e -> lbl.setStyle(hoverStyle));
+        lbl.setOnMouseExited(e -> lbl.setStyle(normalStyle));
+        lbl.setOnMouseClicked(e -> action.run());
+        CustomMenuItem item = new CustomMenuItem(lbl, true);
+        item.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-selection-bar: transparent; -fx-focus-color: transparent; -fx-faint-focus-color: transparent; -fx-padding: 0;");
+        return item;
+    }
+
+    public static void styleComboBox(ComboBox<String> combo) {
+        final String btnStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-padding: 0 6 0 6;";
+        ListCell<String> btnCell = new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? combo.getPromptText() : item);
+            }
+        };
+        btnCell.setStyle(btnStyle);
+        combo.setButtonCell(btnCell);
+
+        combo.setCellFactory(listView -> {
+            listView.setStyle("-fx-background-color: #241942; -fx-background-insets: 0; -fx-padding: 0; -fx-border-color: #3b286b; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+            ListCell<String> cell = new ListCell<>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty ? null : item);
+                }
+            };
+            final String normalCell = "-fx-background-color: #241942; -fx-background-insets: 0; -fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn'; -fx-padding: 7 12 7 12; -fx-cursor: hand;";
+            final String hoverCell = "-fx-background-color: #3b286b; -fx-background-insets: 0; -fx-text-fill: #ffc83b; -fx-font-family: 'Vazirmatn'; -fx-padding: 7 12 7 12; -fx-cursor: hand;";
+            cell.setStyle(normalCell);
+            cell.setOnMouseEntered(e -> cell.setStyle(hoverCell));
+            cell.setOnMouseExited(e -> cell.setStyle(normalCell));
+            return cell;
+        });
     }
 
     // ---------------------------------------------------------- صفحه اصلی
@@ -161,6 +205,61 @@ public class HelloController {
         }
     }
 
+    // 🗂 بارگذاری پویای دسته‌بندی‌ها از سرور (شامل دسته‌های جدیدی که ادمین اضافه می‌کند)
+    private void loadCategoriesIntoSidebar() {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/categories"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200) return;
+
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("\"name\"\\s*:\\s*\"([^\"]+)\"")
+                            .matcher(response.body());
+                    while (m.find()) {
+                        String n = m.group(1).trim();
+                        if (!n.isEmpty() && !names.contains(n)) names.add(n);
+                    }
+                    if (names.isEmpty()) return;
+
+                    Platform.runLater(() -> {
+                        serverCategories.clear();
+                        serverCategories.addAll(names);
+                        if (categoryVBox == null) return;
+
+                        // حذف دکمه‌های قبلی به‌جز «همه محصولات»
+                        categoryVBox.getChildren().removeIf(node ->
+                                node instanceof Button && !"همه محصولات".equals(((Button) node).getText()));
+
+                        for (String name : names) {
+                            if ("همه محصولات".equals(name)) continue;
+                            Button btn = new Button(name);
+                            btn.setAlignment(javafx.geometry.Pos.BASELINE_RIGHT);
+                            btn.setMaxWidth(Double.MAX_VALUE);
+                            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-border-radius: 6; -fx-background-radius: 6;");
+                            btn.setOnAction(this::onCategoryClick);
+                            categoryVBox.getChildren().add(btn);
+                        }
+
+                        // حفظ هایلایت دسته فعال پس از بازسازی لیست
+                        Button activeBtn = null;
+                        for (javafx.scene.Node node : categoryVBox.getChildren()) {
+                            if (node instanceof Button && !filterCategory.isBlank()
+                                    && filterCategory.equals(((Button) node).getText())) {
+                                activeBtn = (Button) node;
+                                break;
+                            }
+                        }
+                        updateCategoryButtonStyles(activeBtn);
+                    });
+                });
+    }
+
     /** 🔶 به‌روزکردن کادر دسته‌بندی فعال در ستون سمت راست */
     private void updateCategoryButtonStyles(Button activeBtn) {
         if (categoryVBox == null) return;
@@ -169,11 +268,20 @@ public class HelloController {
         for (javafx.scene.Node node : categoryVBox.getChildren()) {
             if (node instanceof Button) node.setStyle(normal);
         }
+        if (activeBtn == null) {
+            for (javafx.scene.Node node : categoryVBox.getChildren()) {
+                if (node instanceof Button && "همه محصولات".equals(((Button) node).getText())) {
+                    activeBtn = (Button) node;
+                    break;
+                }
+            }
+        }
         if (activeBtn != null) activeBtn.setStyle(active);
     }
 
     public void showHomeScreen() {
         setActiveTopBarSection("home");
+        loadCategoriesIntoSidebar();
         String query = (searchField != null && searchField.getText() != null)
                 ? searchField.getText().trim() : "";
         fetchHomeAds(query);
@@ -684,21 +792,6 @@ public class HelloController {
 
         return card;
     }
-    private String extractImageUrlFromJson(String json) {
-        try {
-            int index = json.indexOf("\"imageUrl\"");
-            if (index == -1) return null;
-            int colonIndex = json.indexOf(":", index);
-            if (colonIndex == -1) return null;
-            int startQuote = json.indexOf("\"", colonIndex);
-            if (startQuote == -1) return null;
-            int endQuote = json.indexOf("\"", startQuote + 1);
-            if (endQuote == -1) return null;
-            return json.substring(startQuote + 1, endQuote);
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
     private String statusToPersian(String status) {
         if (status == null) return "";
@@ -773,17 +866,27 @@ public class HelloController {
             cmbCity.getItems().add(city);
         }
         cmbCity.setValue(city);
+        cmbCity.setMaxWidth(Double.MAX_VALUE);
+        cmbCity.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        styleComboBox(cmbCity);
 
         Label lblFieldCategory = new Label("دسته‌بندی:");
         lblFieldCategory.setStyle(labelStyle);
         ComboBox<String> cmbCategory = new ComboBox<>();
-        cmbCategory.getItems().addAll("کالای دیجیتال", "وسایل نقلیه", "املاک", "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات");
+        if (!serverCategories.isEmpty()) {
+            cmbCategory.getItems().addAll(serverCategories);
+        } else {
+            cmbCategory.getItems().addAll("کالای دیجیتال", "وسایل نقلیه", "املاک", "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات");
+        }
         if (category != null && !category.isBlank() && !"مشخص نشده".equals(category) && !cmbCategory.getItems().contains(category)) {
             cmbCategory.getItems().add(category);
         }
         if (category != null && !"مشخص نشده".equals(category)) {
             cmbCategory.setValue(category);
         }
+        cmbCategory.setMaxWidth(Double.MAX_VALUE);
+        cmbCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        styleComboBox(cmbCategory);
 
         // 🖼️ مدیریت تک‌به‌تک عکس‌ها: پیش‌نمایش هر عکس + دکمه حذف زیر همان عکس
         Label lblImagesTitle = new Label("عکس‌های آگهی (برای حذف هر عکس، دکمه حذف زیر همان عکس را بزنید):");
