@@ -6,7 +6,6 @@ import com.example.backend.dto.RegisterRequest;
 import com.example.backend.model.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtUtil;
-import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,14 +25,6 @@ public class AuthService {
     // 🔐 جدید: هش کردن رمز عبور با BCrypt (مطابق بخش امنیت سند پروژه)
     @Autowired
     private PasswordEncoder passwordEncoder;
-
-    public boolean isUsernameExists(String username) {
-        return userRepository.existsByUsername(username);
-    }
-
-    public boolean isPhoneNumberExists(String phoneNumber) {
-        return userRepository.existsByPhoneNumber(phoneNumber);
-    }
 
     /**
      * ثبت‌نام کاربر جدید همراه با اعتبارسنجی + هش شدن رمز عبور
@@ -125,36 +116,6 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             return user.getJwtToken() != null && user.getJwtToken().equals(incomingToken);
-        }
-        return false;
-    }
-
-    /**
-     * 🔍 اعتبارسنجی سشن و بررسی هوشمند انقضای توکن
-     */
-    @Transactional
-    public boolean checkSession(String identifier, String incomingToken) {
-        Optional<User> userOpt = userRepository.findByPhoneNumber(identifier)
-                .or(() -> userRepository.findByUsername(identifier));
-
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-
-            if (user.getJwtToken() == null || !user.getJwtToken().equals(incomingToken)) {
-                return false;
-            }
-
-            try {
-                boolean isValid = jwtUtil.validateToken(incomingToken, user.getUsername());
-                return isValid;
-            } catch (ExpiredJwtException e) {
-                user.setJwtToken(null);
-                userRepository.saveAndFlush(user);
-                System.out.println("🧹 [CheckSession] توکن منقضی شده کاربر " + user.getUsername() + " در دیتابیس null شد.");
-                return false;
-            } catch (Exception e) {
-                return false;
-            }
         }
         return false;
     }

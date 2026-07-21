@@ -37,16 +37,6 @@ public class AdvertisementService {
     @Autowired
     private RatingRepository ratingRepository;
 
-    // دریافت تمام آگهی‌ها
-    public List<Advertisement> getAllAdvertisements() {
-        return advertisementRepository.findAll();
-    }
-
-    // دریافت آگهی‌های کاربران دیگر (به جز کاربر جاری) — بدون فیلتر وضعیت (نسخه قدیمی)
-    public List<Advertisement> getAdsExceptOwner(String ownerUsername) {
-        return advertisementRepository.findByOwnerUsernameNot(ownerUsername);
-    }
-
     /**
      * 🔍 جدید: دریافت آگهی‌های «فعال» دیگران + جستجو، فیلتر ترکیبی و مرتب‌سازی (مطابق سند پروژه)
      * - فقط آگهی‌هایی با وضعیت ACTIVE برای عموم قابل مشاهده هستند
@@ -103,10 +93,6 @@ public class AdvertisementService {
         return stream.sorted(comparator).collect(Collectors.toList());
     }
 
-    // دریافت آگهی‌های اختصاصی یک کاربر (با هر وضعیتی، تا مالک وضعیت آگهی خود را ببیند)
-    public List<Advertisement> getAdsByUsername(String username) {
-        return advertisementRepository.findByOwnerUsername(username);
-    }
 
     /**
      * 🔍 جدید: آگهی‌های خود کاربر + جستجو، فیلتر ترکیبی و مرتب‌سازی

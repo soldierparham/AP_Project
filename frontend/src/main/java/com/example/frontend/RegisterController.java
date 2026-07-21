@@ -155,20 +155,6 @@ public class RegisterController {
         navigateToLogin(event);
     }
 
-    /**
-     * دکمه انصراف (پاک کردن فیلدها یا بستن پنجره)
-     */
-    @FXML
-    void onCancelClick(ActionEvent event) {
-        nameField.clear();
-        usernameField.clear();
-        phoneField.clear();
-        emailField.clear();
-        passwordField.clear();
-        if (confirmPasswordField != null) {
-            confirmPasswordField.clear();
-        }
-    }
 
     /**
      * متد کمکی برای ناوبری و سوئیچ به صفحه لاگین

@@ -107,11 +107,6 @@ public class LoginController {
                 });
     }
 
-    @FXML
-    private void onCancelClick() {
-        closeWindow();
-    }
-
     /**
      * جابه‌جایی به صفحه ثبت‌نام (اصلاح شده با مسیر مطلق)
      */

@@ -14,25 +14,12 @@ public class JwtUtil {
     private final String SECRET_KEY = "YourSuperSecretPurpleAndGoldMarketplaceKey123!";
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
-    private final long EXPIRATION_TIME = 1000 * 60 * 20;
-
-    /**
-     * 🎫 صدور توکن ساده
-     */
-    public String generateToken(String username) {
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
-    }
-
     /**
      * 🎫 صدور توکن همراه با نقش
      */
     public String generateToken(String username, String role) {
         // 🌟 اصلاح اصلی: استفاده از .claim بجای .setClaims برای جلوگیری از حذف سایر فیلدها
+        long EXPIRATION_TIME = 1000 * 60 * 20;
         return Jwts.builder()
                 .claim("role", role)
                 .setSubject(username)

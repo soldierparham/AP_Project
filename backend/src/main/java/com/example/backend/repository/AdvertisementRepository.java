@@ -10,9 +10,6 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, Lo
     // آگهی‌های یک کاربر مشخص
     List<Advertisement> findByOwnerUsername(String ownerUsername);
 
-    // آگهی‌های همه کاربران به جز کاربر جاری
-    List<Advertisement> findByOwnerUsernameNot(String ownerUsername);
-
     // 🟢 جدید: آگهی‌ها بر اساس وضعیت (برای پنل مدیریت)
     List<Advertisement> findByStatus(String status);
 
