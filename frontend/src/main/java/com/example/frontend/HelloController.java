@@ -108,7 +108,9 @@ public class HelloController {
         CustomMenuItem favoritesItem = buildThemedMenuItem("\u2b50 علاقه‌مندی‌های من", this::showFavoritesScreen);
         CustomMenuItem logoutItem = buildThemedMenuItem("\ud83d\udeaa خروج از حساب", this::onLogoutClick);
 
-        hoverMenu.getItems().addAll(profileItem, favoritesItem);
+        CustomMenuItem editProfileItem = buildThemedMenuItem("⚙️ ویرایش مشخصات", this::openProfileEditPage);
+
+        hoverMenu.getItems().addAll(profileItem, favoritesItem, editProfileItem);
 
         // 🛡️ فقط برای مدیر سیستم
         if ("ADMIN".equalsIgnoreCase(extractRoleFromToken())) {
@@ -900,6 +902,167 @@ public class HelloController {
             newRoot.getChildren().remove(originalRoot);
             scene.setRoot(originalRoot);
         });
+    }
+
+    // ---------------------------------------------------------- ویرایش مشخصات کاربر
+
+    private void openProfileEditPage() {
+        setActiveTopBarSection("myDivar");
+        setCategorySidebarVisible(false);
+
+        VBox editBox = new VBox(12);
+        editBox.setPadding(new Insets(25));
+        editBox.setStyle("-fx-background-color: #160f29;");
+
+        Label lblHeader = new Label("\u2699\ufe0f ویرایش مشخصات کاربری");
+        lblHeader.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        String inputStyle = "-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';";
+        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';";
+
+        Label lblFieldName = new Label("نام و نام خانوادگی:");
+        lblFieldName.setStyle(labelStyle);
+        TextField txtName = new TextField();
+        txtName.setStyle(inputStyle);
+
+        Label lblFieldUsername = new Label("نام کاربری (غیرقابل تغییر):");
+        lblFieldUsername.setStyle(labelStyle);
+        TextField txtUsername = new TextField();
+        txtUsername.setDisable(true);
+        txtUsername.setStyle(inputStyle + " -fx-opacity: 0.65;");
+
+        Label lblFieldPhone = new Label("شماره تماس:");
+        lblFieldPhone.setStyle(labelStyle);
+        TextField txtPhone = new TextField();
+        txtPhone.setStyle(inputStyle);
+
+        Label lblFieldEmail = new Label("ایمیل:");
+        lblFieldEmail.setStyle(labelStyle);
+        TextField txtEmail = new TextField();
+        txtEmail.setStyle(inputStyle);
+
+        Label lblPassHint = new Label("برای تغییر رمز عبور، دو فیلد زیر را پر کنید؛ در غیر این صورت خالی بگذارید.");
+        lblPassHint.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+
+        Label lblFieldCurrentPass = new Label("رمز عبور فعلی:");
+        lblFieldCurrentPass.setStyle(labelStyle);
+        PasswordField txtCurrentPass = new PasswordField();
+        txtCurrentPass.setStyle(inputStyle);
+
+        Label lblFieldNewPass = new Label("رمز عبور جدید:");
+        lblFieldNewPass.setStyle(labelStyle);
+        PasswordField txtNewPass = new PasswordField();
+        txtNewPass.setStyle(inputStyle);
+        // جلوگیری از فاصله و کاراکترهای ممنوعه در رمز جدید
+        txtNewPass.setTextFormatter(new TextFormatter<>(change ->
+                change.getText().matches("[A-Za-z0-9@#$%^&*()_+\\-=.!?~]*") ? change : null));
+
+        Button btnSave = new Button("\ud83d\udcbe ذخیره تغییرات");
+        btnSave.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #241942; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnSave.setOnAction(e -> saveProfileChanges(
+                txtName.getText().trim(),
+                txtPhone.getText().trim(),
+                txtEmail.getText().trim(),
+                txtCurrentPass.getText(),
+                txtNewPass.getText()));
+
+        Button btnBack = new Button("بازگشت");
+        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnBack.setOnAction(e -> showHomeScreen());
+
+        HBox buttonBar = new HBox(10, btnSave, btnBack);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+
+        editBox.getChildren().addAll(lblHeader,
+                lblFieldName, txtName,
+                lblFieldUsername, txtUsername,
+                lblFieldPhone, txtPhone,
+                lblFieldEmail, txtEmail,
+                lblPassHint,
+                lblFieldCurrentPass, txtCurrentPass,
+                lblFieldNewPass, txtNewPass,
+                buttonBar);
+
+        ScrollPane scrollPane = new ScrollPane(editBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+        mainBorderPane.setCenter(scrollPane);
+
+        // دریافت مشخصات فعلی کاربر از سرور
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/users/me"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .GET()
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        String body = response.body();
+                        txtName.setText(cleanProfileField(extractJsonField(body, "name")));
+                        txtUsername.setText(cleanProfileField(extractJsonField(body, "username")));
+                        txtPhone.setText(cleanProfileField(extractJsonField(body, "phoneNumber")));
+                        txtEmail.setText(cleanProfileField(extractJsonField(body, "email")));
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
+
+    private String cleanProfileField(String value) {
+        return (value == null || "مشخص نشده".equals(value)) ? "" : value;
+    }
+
+    private void saveProfileChanges(String name, String phone, String email, String currentPass, String newPass) {
+        if (name.isBlank()) {
+            showErrorAlert("نام نمی‌تواند خالی باشد.");
+            return;
+        }
+        if (phone.isBlank()) {
+            showErrorAlert("شماره تماس نمی‌تواند خالی باشد.");
+            return;
+        }
+        if (!newPass.isBlank() && currentPass.isBlank()) {
+            showErrorAlert("برای تغییر رمز عبور، رمز عبور فعلی را وارد کنید.");
+            return;
+        }
+
+        StringBuilder body = new StringBuilder("{");
+        body.append("\"name\":\"").append(escapeJsonValue(name)).append("\"");
+        body.append(",\"phoneNumber\":\"").append(escapeJsonValue(phone)).append("\"");
+        body.append(",\"email\":\"").append(escapeJsonValue(email)).append("\"");
+        if (!newPass.isBlank()) {
+            body.append(",\"currentPassword\":\"").append(escapeJsonValue(currentPass)).append("\"");
+            body.append(",\"newPassword\":\"").append(escapeJsonValue(newPass)).append("\"");
+        }
+        body.append("}");
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/api/users/me"))
+                .header("Authorization", "Bearer " + MainApplication.jwtToken)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() == 200) {
+                        showSuccessAlert("مشخصات شما با موفقیت به‌روزرسانی شد.");
+                        showHomeScreen();
+                    } else if (response.statusCode() == 401) {
+                        handleUnauthorized(response.statusCode());
+                    } else {
+                        showErrorAlert(extractJsonField(response.body(), "message"));
+                    }
+                }));
+    }
+
+    private String escapeJsonValue(String value) {
+        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private String statusToPersian(String status) {
