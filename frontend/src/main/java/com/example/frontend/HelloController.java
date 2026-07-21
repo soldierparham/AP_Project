@@ -1249,7 +1249,7 @@ public class HelloController {
 
             Button btnRate = new Button("\u2b50 ثبت امتیاز به فروشنده");
             btnRate.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
-            btnRate.setOnAction(e -> openRatingDialog(adId, lblRating));
+            btnRate.setOnAction(e -> openRatingPage(adId, title, description, rawPrice, owner, imageUrl));
 
             actionRow.getChildren().addAll(btnStartChat, btnRate);
         }
@@ -1282,14 +1282,68 @@ public class HelloController {
                 }));
     }
 
-    private void openRatingDialog(long adId, Label ratingLabel) {
-        ChoiceDialog<Integer> dialog = new ChoiceDialog<>(5, List.of(1, 2, 3, 4, 5));
-        dialog.setTitle("ثبت امتیاز");
-        dialog.setHeaderText("امتیاز شما به فروشنده (۱ تا ۵):");
-        dialog.setContentText("امتیاز:");
+    private void openRatingPage(long adId, String title, String description,
+                                 String rawPrice, String owner, String imageUrl) {
+        VBox ratingBox = new VBox(20);
+        ratingBox.setPadding(new Insets(30));
+        ratingBox.setAlignment(Pos.TOP_CENTER);
+        ratingBox.setStyle("-fx-background-color: #160f29;");
 
-        dialog.showAndWait().ifPresent(score -> {
-            String body = "{\"adId\":" + adId + ",\"score\":" + score + "}";
+        Button btnBack = new Button("\u2b05 بازگشت به آگهی");
+        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnBack.setOnAction(e -> openAdDetailsPage(adId, title, description, rawPrice, owner, imageUrl));
+
+        HBox backRow = new HBox(btnBack);
+        backRow.setAlignment(Pos.CENTER_RIGHT);
+
+        Label lblHeader = new Label("\u2b50 ثبت امتیاز به فروشنده");
+        lblHeader.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblSeller = new Label("فروشنده: " + owner);
+        lblSeller.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
+
+        Label lblAd = new Label("آگهی: " + title);
+        lblAd.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        final int[] selectedScore = {5};
+        Button[] starButtons = new Button[5];
+
+        Label lblSelected = new Label();
+        lblSelected.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
+
+        Runnable refreshStars = () -> {
+            for (int i = 0; i < 5; i++) {
+                boolean active = i < selectedScore[0];
+                starButtons[i].setStyle("-fx-background-color: " + (active ? "#ffc83b" : "#241942")
+                        + "; -fx-text-fill: " + (active ? "#160f29" : "#8575a3")
+                        + "; -fx-font-size: 22px; -fx-background-radius: 10; -fx-cursor: hand;"
+                        + " -fx-border-color: " + (active ? "#d8a014" : "#3b286b")
+                        + "; -fx-border-radius: 10;");
+            }
+            lblSelected.setText("امتیاز انتخاب شده: " + selectedScore[0] + " از 5");
+        };
+
+        for (int i = 0; i < 5; i++) {
+            final int score = i + 1;
+            Button star = new Button("\u2605");
+            star.setOnAction(e -> {
+                selectedScore[0] = score;
+                refreshStars.run();
+            });
+            starButtons[i] = star;
+        }
+
+        HBox starsRow = new HBox(10);
+        starsRow.setAlignment(Pos.CENTER);
+        for (int i = 4; i >= 0; i--) {
+            starsRow.getChildren().add(starButtons[i]);
+        }
+        refreshStars.run();
+
+        Button btnSubmit = new Button("ثبت امتیاز");
+        btnSubmit.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnSubmit.setOnAction(e -> {
+            String body = "{\"adId\":" + adId + ",\"score\":" + selectedScore[0] + "}";
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(BASE_URL + "/api/ratings"))
@@ -1303,7 +1357,7 @@ public class HelloController {
                         checkAndRefreshToken(response);
                         if (response.statusCode() >= 200 && response.statusCode() < 300) {
                             showSuccessAlert("امتیاز شما با موفقیت ثبت شد.");
-                            loadSellerRating(adId, ratingLabel);
+                            openAdDetailsPage(adId, title, description, rawPrice, owner, imageUrl);
                         } else if (response.statusCode() == 401) {
                             handleUnauthorized(response.statusCode());
                         } else {
@@ -1311,6 +1365,19 @@ public class HelloController {
                         }
                     }));
         });
+
+        VBox card = new VBox(18, lblHeader, lblSeller, lblAd, starsRow, lblSelected, btnSubmit);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(30));
+        card.setMaxWidth(460);
+        card.setStyle("-fx-background-color: #241942; -fx-background-radius: 14; -fx-border-color: #3b286b; -fx-border-radius: 14;");
+
+        ratingBox.getChildren().addAll(backRow, card);
+
+        ScrollPane scrollPane = new ScrollPane(ratingBox);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+        mainBorderPane.setCenter(scrollPane);
     }
 
     // ---------------------------------------------------------- 💬 چت
