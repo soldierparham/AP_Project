@@ -1264,9 +1264,14 @@ public class HelloController {
     // ---------------------------------------------------------- ویرایش و حذف آگهی
 
     private void openEditAdPage(long adId, String title, String description, String price, String city, String category, String currentImageUrl) {
-        VBox editBox = new VBox(12);
-        editBox.setPadding(new Insets(25));
+        VBox editBox = new VBox(20);
+        editBox.setPadding(new Insets(30, 150, 30, 150));
+        editBox.setAlignment(Pos.TOP_RIGHT);
         editBox.setStyle("-fx-background-color: #160f29;");
+
+        String inputStyle = "-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; "
+            + "-fx-border-radius: 6; -fx-background-radius: 6; -fx-font-family: 'Vazirmatn'; -fx-prompt-text-fill: #8b7ca6;";
+        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';";
 
         Label lblHeader = new Label("\u270f\ufe0f ویرایش آگهی");
         lblHeader.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
@@ -1274,191 +1279,169 @@ public class HelloController {
         Label lblHint = new Label("پس از ویرایش، آگهی دوباره برای بازبینی به مدیر ارسال می‌شود.");
         lblHint.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
 
-        String inputStyle = "-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';";
-        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';";
-
-        Label lblFieldTitle = new Label("عنوان:");
-        lblFieldTitle.setStyle(labelStyle);
+        // 1. عنوان
+        Label lbl1 = new Label("عنوان آگهی"); lbl1.setStyle(labelStyle);
         TextField txtTitle = new TextField(title);
-        txtTitle.setStyle(inputStyle);
+        txtTitle.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
+        txtTitle.setPrefHeight(40); txtTitle.setStyle(inputStyle);
+        VBox sec1 = new VBox(6, lbl1, txtTitle); sec1.setAlignment(Pos.TOP_RIGHT);
 
-        Label lblFieldDesc = new Label("توضیحات:");
-        lblFieldDesc.setStyle(labelStyle);
-        TextArea txtDesc = new TextArea(description);
-        txtDesc.setPrefRowCount(4);
-        // ⚠️ برای TextArea باید -fx-control-inner-background هم ست شود، وگرنه ناحیه متن سفید می‌ماند
-        txtDesc.setStyle(inputStyle + " -fx-control-inner-background: #241942; -fx-highlight-fill: #3b286b; -fx-highlight-text-fill: white;");
-
-        Label lblFieldPrice = new Label("قیمت (تومان):");
-        lblFieldPrice.setStyle(labelStyle);
+        // 2. قیمت
+        Label lbl2 = new Label("قیمت (تومان)"); lbl2.setStyle(labelStyle);
         TextField txtPrice = new TextField(price);
-        txtPrice.setStyle(inputStyle);
+        txtPrice.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
+        txtPrice.setPrefHeight(40); txtPrice.setStyle(inputStyle);
+        VBox sec2 = new VBox(6, lbl2, txtPrice); sec2.setAlignment(Pos.TOP_RIGHT);
 
-        Label lblFieldCity = new Label("شهر:");
-        lblFieldCity.setStyle(labelStyle);
-        ComboBox<String> cmbCity = new ComboBox<>();
-        cmbCity.getItems().addAll(serverCities);
-        if (city != null && !city.isBlank() && !cmbCity.getItems().contains(city)) {
-            cmbCity.getItems().add(city);
-        }
-        cmbCity.setValue(city);
-        cmbCity.setMaxWidth(Double.MAX_VALUE);
-        cmbCity.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
-        styleComboBox(cmbCity);
-
-        Label lblFieldCategory = new Label("دسته‌بندی:");
-        lblFieldCategory.setStyle(labelStyle);
+        // 3. دسته‌بندی + شهر
+        Label lbl3cat = new Label("دسته‌بندی"); lbl3cat.setStyle(labelStyle);
         ComboBox<String> cmbCategory = new ComboBox<>();
-        if (!serverCategoryTree.isEmpty()) {
-            cmbCategory.getItems().addAll(serverCategoryTree.keySet()); // فقط دسته‌های اصلی
-        } else if (!serverCategories.isEmpty()) {
-            cmbCategory.getItems().addAll(serverCategories);
-        } else {
-            cmbCategory.getItems().addAll("کالای دیجیتال", "وسایل نقلیه", "املاک", "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات");
-        }
-        cmbCategory.setMaxWidth(Double.MAX_VALUE);
-        cmbCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        if (!serverCategoryTree.isEmpty()) { cmbCategory.getItems().addAll(serverCategoryTree.keySet()); }
+        else if (!serverCategories.isEmpty()) { cmbCategory.getItems().addAll(serverCategories); }
+        else { cmbCategory.getItems().addAll("کالای دیجیتال","وسایل نقلیه","املاک","لوازم خانگی","مد و پوشاک","سرگرمی و فراغت","خدمات"); }
+        cmbCategory.setMaxWidth(Double.MAX_VALUE); cmbCategory.setPrefHeight(40);
+        cmbCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;");
         styleComboBox(cmbCategory);
 
-        // کمبوی زیردسته: فقط وقتی دسته اصلی انتخابی زیردسته داشته باشد نمایش داده می‌شود
         ComboBox<String> cmbSubCategory = new ComboBox<>();
         cmbSubCategory.setPromptText("انتخاب زیردسته (اختیاری)...");
-        cmbSubCategory.setMaxWidth(Double.MAX_VALUE);
-        cmbSubCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-cursor: hand; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        cmbSubCategory.setMaxWidth(Double.MAX_VALUE); cmbSubCategory.setPrefHeight(40);
+        cmbSubCategory.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;");
         styleComboBox(cmbSubCategory);
-        cmbSubCategory.setVisible(false);
-        cmbSubCategory.setManaged(false);
+        cmbSubCategory.setVisible(false); cmbSubCategory.setManaged(false);
 
-        Runnable refreshSubCombo = () -> {
-            String mainCat = cmbCategory.getValue();
-            java.util.List<String> kids = mainCat == null ? null : serverCategoryTree.get(mainCat);
+        Runnable refreshSub = () -> {
+            String mc = cmbCategory.getValue();
+            java.util.List<String> kids = mc == null ? null : serverCategoryTree.get(mc);
             boolean has = kids != null && !kids.isEmpty();
             cmbSubCategory.getItems().setAll(has ? kids : java.util.Collections.<String>emptyList());
             cmbSubCategory.getSelectionModel().clearSelection();
-            cmbSubCategory.setVisible(has);
-            cmbSubCategory.setManaged(has);
+            cmbSubCategory.setVisible(has); cmbSubCategory.setManaged(has);
         };
-        cmbCategory.valueProperty().addListener((obs, oldV, newV) -> refreshSubCombo.run());
+        cmbCategory.valueProperty().addListener((obs,ov,nv)->refreshSub.run());
 
-        // مقداردهی اولیه: اگر دسته فعلی آگهی زیردسته باشد، والد + زیردسته انتخاب می‌شود
         if (category != null && !category.isBlank() && !"مشخص نشده".equals(category)) {
-            String parentOfCurrent = null;
-            for (java.util.Map.Entry<String, java.util.List<String>> en : serverCategoryTree.entrySet()) {
-                if (en.getValue().contains(category)) { parentOfCurrent = en.getKey(); break; }
-            }
-            if (parentOfCurrent != null) {
-                cmbCategory.setValue(parentOfCurrent);
-                cmbSubCategory.setValue(category);
-            } else {
-                if (!cmbCategory.getItems().contains(category)) {
-                    cmbCategory.getItems().add(category);
-                }
-                cmbCategory.setValue(category);
-            }
+            String par = null;
+            for (java.util.Map.Entry<String,java.util.List<String>> en : serverCategoryTree.entrySet())
+                if (en.getValue().contains(category)) { par = en.getKey(); break; }
+            if (par != null) { cmbCategory.setValue(par); cmbSubCategory.setValue(category); }
+            else { if (!cmbCategory.getItems().contains(category)) cmbCategory.getItems().add(category); cmbCategory.setValue(category); }
         }
 
-        // 🖼️ مدیریت تک‌به‌تک عکس‌ها: پیش‌نمایش هر عکس + دکمه حذف زیر همان عکس
-        Label lblImagesTitle = new Label("عکس‌های آگهی (برای حذف هر عکس، دکمه حذف زیر همان عکس را بزنید):");
-        lblImagesTitle.setStyle(labelStyle);
+        Label lbl3city = new Label("شهر"); lbl3city.setStyle(labelStyle);
+        ComboBox<String> cmbCity = new ComboBox<>();
+        cmbCity.getItems().addAll(serverCities);
+        if (city != null && !city.isBlank() && !cmbCity.getItems().contains(city)) cmbCity.getItems().add(city);
+        cmbCity.setValue(city); cmbCity.setMaxWidth(Double.MAX_VALUE); cmbCity.setPrefHeight(40);
+        cmbCity.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: white; -fx-prompt-text-fill: #8b7ca6;");
+        styleComboBox(cmbCity);
+
+        VBox catBox = new VBox(6, lbl3cat, cmbCategory, cmbSubCategory);
+        catBox.setAlignment(Pos.TOP_RIGHT); HBox.setHgrow(catBox, Priority.ALWAYS);
+        VBox cityBox = new VBox(6, lbl3city, cmbCity);
+        cityBox.setAlignment(Pos.TOP_RIGHT); HBox.setHgrow(cityBox, Priority.ALWAYS);
+        HBox catCityRow = new HBox(15, catBox, cityBox);
+        catCityRow.setAlignment(Pos.TOP_RIGHT);
+
+        // 4. توضیحات
+        Label lbl4 = new Label("توضیحات آگهی"); lbl4.setStyle(labelStyle);
+        TextArea txtDesc = new TextArea(description);
+        txtDesc.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
+        txtDesc.setPrefRowCount(4); txtDesc.setWrapText(true);
+        txtDesc.setStyle(inputStyle + " -fx-control-inner-background: #241942; -fx-highlight-fill: #3b286b; -fx-highlight-text-fill: white;");
+        VBox sec4 = new VBox(6, lbl4, txtDesc); sec4.setAlignment(Pos.TOP_RIGHT);
+
+        // 5. تصاویر با انتخاب عکس اصلی
+        Label lbl5 = new Label("تصاویر آگهی | اولین عکس دیفالت عکس اصلی — برای تغییر دکمه ★ هر عکس");
+        lbl5.setStyle(labelStyle); lbl5.setWrapText(true);
 
         List<String> keptImageUrls = new ArrayList<>();
         if (currentImageUrl != null && !currentImageUrl.isBlank() && !"مشخص نشده".equals(currentImageUrl)) {
-            for (String part : currentImageUrl.split(",")) {
-                String src = part.trim();
-                if (!src.isEmpty()) keptImageUrls.add(src);
-            }
+            for (String part : currentImageUrl.split(",")) { String src = part.trim(); if (!src.isEmpty()) keptImageUrls.add(src); }
         }
         List<File> newImageFiles = new ArrayList<>();
+        final int[] mainIdx = {0};
 
         FlowPane thumbsPane = new FlowPane(10, 10);
+        thumbsPane.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
         thumbsPane.setPadding(new Insets(5));
 
         final Runnable[] renderThumbs = new Runnable[1];
         renderThumbs[0] = () -> {
             thumbsPane.getChildren().clear();
-            for (String src : new ArrayList<>(keptImageUrls)) {
-                thumbsPane.getChildren().add(buildImageThumb(new Image(BASE_URL + src, 140, 100, false, true, true), "فعلی", () -> {
-                    keptImageUrls.remove(src);
-                    renderThumbs[0].run();
-                }));
+            int total = keptImageUrls.size() + newImageFiles.size();
+            if (mainIdx[0] >= total && total > 0) mainIdx[0] = 0;
+            for (int i = 0; i < keptImageUrls.size(); i++) {
+                final int fi = i; final String src = keptImageUrls.get(i); boolean isMain = (fi==mainIdx[0]);
+                thumbsPane.getChildren().add(buildImageThumb(
+                    new Image(BASE_URL+src, 140,100,false,true,true), "فعلی", isMain,
+                    () -> { keptImageUrls.remove(src); if (mainIdx[0]>=keptImageUrls.size()+newImageFiles.size()) mainIdx[0]=0; renderThumbs[0].run(); },
+                    () -> { mainIdx[0]=fi; renderThumbs[0].run(); }));
             }
-            for (File f : new ArrayList<>(newImageFiles)) {
-                thumbsPane.getChildren().add(buildImageThumb(new Image(f.toURI().toString(), 140, 100, false, true, true), "جدید", () -> {
-                    newImageFiles.remove(f);
-                    renderThumbs[0].run();
-                }));
+            for (int i = 0; i < newImageFiles.size(); i++) {
+                final int fi = keptImageUrls.size()+i; final File f = newImageFiles.get(i); boolean isMain = (fi==mainIdx[0]);
+                thumbsPane.getChildren().add(buildImageThumb(
+                    new Image(f.toURI().toString(),140,100,false,true,true), "جدید", isMain,
+                    () -> { newImageFiles.remove(f); if (mainIdx[0]>=keptImageUrls.size()+newImageFiles.size()) mainIdx[0]=0; renderThumbs[0].run(); },
+                    () -> { mainIdx[0]=fi; renderThumbs[0].run(); }));
             }
             if (thumbsPane.getChildren().isEmpty()) {
-                Label lblEmpty = new Label("این آگهی فعلاً هیچ عکسی ندارد.");
-                lblEmpty.setStyle(labelStyle);
-                thumbsPane.getChildren().add(lblEmpty);
+                Label e = new Label("این آگهی فعلاً هیچ عکسی ندارد."); e.setStyle(labelStyle);
+                thumbsPane.getChildren().add(e);
             }
         };
         renderThumbs[0].run();
 
-        Button btnAddImages = new Button("🖼️ افزودن عکس (چندانتخابی با Ctrl)");
-        btnAddImages.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
-        btnAddImages.setOnAction(ev -> {
+        Button btnAddImg = new Button("\ud83d\uddbc\ufe0f افزودن عکس (چندانتخابی با Ctrl)");
+        btnAddImg.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
+        btnAddImg.setPrefHeight(42); btnAddImg.setMaxWidth(Double.MAX_VALUE);
+        btnAddImg.setOnAction(ev -> {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("افزودن عکس به آگهی");
-            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("تصاویر", "*.png", "*.jpg", "*.jpeg"));
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("تصاویر","*.png","*.jpg","*.jpeg"));
             List<File> files = chooser.showOpenMultipleDialog(mainBorderPane.getScene().getWindow());
-            if (files != null && !files.isEmpty()) {
-                newImageFiles.addAll(files);
-                renderThumbs[0].run();
-            }
+            if (files != null && !files.isEmpty()) { newImageFiles.addAll(files); renderThumbs[0].run(); }
         });
+        VBox sec5 = new VBox(8, lbl5, btnAddImg, thumbsPane); sec5.setAlignment(Pos.TOP_RIGHT);
 
-        Button btnSave = new Button("💾 ذخیره تغییرات");
-        btnSave.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        // 6. دکمه‌ها
+        Button btnSave = new Button("\ud83d\udcbe ذخیره تغییرات");
+        btnSave.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px;");
+        btnSave.setPrefHeight(45); HBox.setHgrow(btnSave, Priority.ALWAYS); btnSave.setMaxWidth(Double.MAX_VALUE);
         btnSave.setOnAction(ev -> {
-            try {
-                Double.parseDouble(txtPrice.getText().trim());
-            } catch (NumberFormatException nfe) {
-                showErrorAlert("لطفاً برای قیمت فقط عدد انگلیسی وارد کنید.");
-                return;
-            }
-            String cityValue = cmbCity.getValue() == null ? "" : cmbCity.getValue();
-            String mainCategoryValue = cmbCategory.getValue() == null ? "" : cmbCategory.getValue();
-            String categoryValue = (cmbSubCategory.isVisible() && cmbSubCategory.getValue() != null && !cmbSubCategory.getValue().isBlank())
-                    ? cmbSubCategory.getValue() : mainCategoryValue;
-            if (!newImageFiles.isEmpty()) {
-                // اول عکس‌های جدید آپلود می‌شوند، بعد کنار عکس‌های باقی‌مانده ذخیره می‌شوند
-                uploadEditImages(newImageFiles)
-                        .thenAccept(joinedUrls -> Platform.runLater(() -> {
-                            List<String> allUrls = new ArrayList<>(keptImageUrls);
-                            for (String p : joinedUrls.split(",")) {
-                                String src = p.trim();
-                                if (!src.isEmpty()) allUrls.add(src);
-                            }
-                            sendEditRequest(adId, txtTitle.getText(), txtDesc.getText(), txtPrice.getText(), cityValue, categoryValue, String.join(",", allUrls), true);
-                        }))
-                        .exceptionally(ex -> {
-                            Platform.runLater(() -> showErrorAlert("آپلود عکس‌های جدید با خطا مواجه شد: "
-                                    + (ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage())));
-                            return null;
-                        });
+            try { Double.parseDouble(txtPrice.getText().trim()); }
+            catch (NumberFormatException nfe) { showErrorAlert("لطفاً برای قیمت فقط عدد انگلیسی وارد کنید."); return; }
+            List<String> oKept = new ArrayList<>(keptImageUrls);
+            List<File>   oNew  = new ArrayList<>(newImageFiles);
+            int midx = mainIdx[0];
+            if (midx > 0 && midx < oKept.size()) { oKept.add(0, oKept.remove(midx)); }
+            else if (midx >= oKept.size()) { int ni = midx-oKept.size(); if (ni>0 && ni<oNew.size()) oNew.add(0,oNew.remove(ni)); }
+            String cityVal = cmbCity.getValue()==null?"":cmbCity.getValue();
+            String mainCat = cmbCategory.getValue()==null?"":cmbCategory.getValue();
+            String catVal  = (cmbSubCategory.isVisible()&&cmbSubCategory.getValue()!=null&&!cmbSubCategory.getValue().isBlank())
+                           ? cmbSubCategory.getValue() : mainCat;
+            if (!oNew.isEmpty()) {
+                final List<String> fk = oKept;
+                uploadEditImages(oNew).thenAccept(joined -> Platform.runLater(() -> {
+                    List<String> all = new ArrayList<>(fk);
+                    for (String p : joined.split(",")) { String sr = p.trim(); if (!sr.isEmpty()) all.add(sr); }
+                    sendEditRequest(adId, txtTitle.getText(), txtDesc.getText(), txtPrice.getText(), cityVal, catVal, String.join(",",all), true);
+                })).exceptionally(ex -> { Platform.runLater(()->showErrorAlert("آپلود خطا: "+(ex.getCause()!=null?ex.getCause().getMessage():ex.getMessage()))); return null; });
             } else {
-                // فقط عکس‌های باقی‌مانده ذخیره می‌شوند (اگر همه حذف شده باشند، آگهی بدون عکس می‌شود)
-                sendEditRequest(adId, txtTitle.getText(), txtDesc.getText(), txtPrice.getText(), cityValue, categoryValue, String.join(",", keptImageUrls), true);
+                sendEditRequest(adId, txtTitle.getText(), txtDesc.getText(), txtPrice.getText(), cityVal, catVal, String.join(",",oKept), true);
             }
         });
 
-        Button btnBack = new Button("❌ انصراف");
-        btnBack.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        Button btnBack = new Button("\u274c انصراف و بازگشت");
+        btnBack.setStyle("-fx-background-color: transparent; -fx-border-color: #ff5555; -fx-border-radius: 6; -fx-text-fill: #ff5555; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px;");
+        btnBack.setPrefHeight(45); HBox.setHgrow(btnBack, Priority.ALWAYS); btnBack.setMaxWidth(Double.MAX_VALUE);
         btnBack.setOnAction(e -> onLoadMyAdsClick());
 
-        HBox actionRow = new HBox(10, btnSave, btnBack);
-        actionRow.setAlignment(Pos.CENTER_RIGHT);
+        HBox actionRow = new HBox(15, btnBack, btnSave);
+        actionRow.setAlignment(Pos.CENTER);
+        VBox.setMargin(actionRow, new Insets(15, 0, 0, 0));
 
-        editBox.getChildren().addAll(lblHeader, lblHint,
-                lblFieldTitle, txtTitle,
-                lblFieldDesc, txtDesc,
-                lblFieldPrice, txtPrice,
-                lblFieldCity, cmbCity,
-                lblFieldCategory, cmbCategory, cmbSubCategory,
-                lblImagesTitle, btnAddImages, thumbsPane,
-                actionRow);
+        editBox.getChildren().addAll(lblHeader, lblHint, sec1, sec2, catCityRow, sec4, sec5, actionRow);
 
         ScrollPane scrollPane = new ScrollPane(editBox);
         scrollPane.setFitToWidth(true);
@@ -1466,24 +1449,30 @@ public class HelloController {
         mainBorderPane.setCenter(scrollPane);
     }
 
-    /** 🖼️ ساخت پیش‌نمایش کوچک عکس با برچسب و دکمه حذف تکی. */
-    private VBox buildImageThumb(Image image, String tag, Runnable onRemove) {
+    /** 🖼️ ساخت پیش‌نمایش کوچک عکس | عکس اصلی با کادر طلایی. */
+    private VBox buildImageThumb(Image image, String tag, boolean isMain, Runnable onRemove, Runnable onSetMain) {
         ImageView iv = new ImageView(image);
-        iv.setFitWidth(140);
-        iv.setFitHeight(100);
-        iv.setPreserveRatio(false);
+        iv.setFitWidth(140); iv.setFitHeight(100); iv.setPreserveRatio(false);
 
-        Label lblTag = new Label(tag);
-        lblTag.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
+        Label lblTag = new Label(isMain ? "⭐ عکس اصلی" : tag);
+        lblTag.setStyle(isMain
+            ? "-fx-text-fill: #ffc83b; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn'; -fx-font-weight: bold;"
+            : "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
 
-        Button btnRemove = new Button("🗑️ حذف");
+        Button btnRemove = new Button("\ud83d\uddd1\ufe0f حذف");
         btnRemove.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
         btnRemove.setOnAction(e -> onRemove.run());
 
         VBox box = new VBox(5, iv, lblTag, btnRemove);
+        if (!isMain) {
+            Button btnSet = new Button("⭐ عکس اصلی");
+            btnSet.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';");
+            btnSet.setOnAction(e -> onSetMain.run());
+            box.getChildren().add(btnSet);
+        }
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(8));
-        box.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 10; -fx-background-radius: 10;");
+        box.setStyle("-fx-background-color: #241942; -fx-border-color: "+(isMain?"#ffc83b":"#3b286b")+"; -fx-border-width: "+(isMain?"2":"1")+"; -fx-border-radius: 10; -fx-background-radius: 10;");
         return box;
     }
 

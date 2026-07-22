@@ -61,6 +61,7 @@ public class RegisterAdController {
 
     // 🖼️ لیست عکس‌های انتخاب‌شده (به جای تک‌فایل قبلی)
     private final List<File> selectedImageFiles = new ArrayList<>();
+    private int mainImageIndex = 0;
 
     private HelloController helloController;
     private final HttpClient client = HttpClient.newHttpClient();
@@ -208,41 +209,37 @@ public class RegisterAdController {
         }
     }
 
-    /** 🖼️ نمایش thumbnail هر عکس انتخاب‌شده با دکمه حذف */
+    /** 🖼️ نمایش thumbnail با انتخاب عکس اصلی */
     private void renderImageThumbs() {
         if (imageThumbsPane == null) return;
         imageThumbsPane.getChildren().clear();
-        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';";
-        String btnStyle = "-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
+        if (mainImageIndex >= selectedImageFiles.size()) mainImageIndex = 0;
+        String ls = "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';";
         for (int i = 0; i < selectedImageFiles.size(); i++) {
-            final int idx = i;
-            File file = selectedImageFiles.get(i);
+            final int idx = i; File file = selectedImageFiles.get(i);
             try {
-                Image img = new Image(file.toURI().toString(), 120, 90, true, true, false);
-                ImageView iv = new ImageView(img);
-                iv.setFitWidth(120);
-                iv.setFitHeight(90);
-                iv.setPreserveRatio(false);
-                iv.setStyle("-fx-effect: dropshadow(gaussian,rgba(0,0,0,0.4),4,0,0,2);");
-
-                Label lbl = new Label(file.getName().length() > 14 ? file.getName().substring(0,14)+"..." : file.getName());
-                lbl.setStyle(labelStyle);
-
+                Image img = new Image(file.toURI().toString(),120,90,true,true,false);
+                ImageView iv = new ImageView(img); iv.setFitWidth(120); iv.setFitHeight(90); iv.setPreserveRatio(false);
+                boolean isMain = (idx==mainImageIndex);
+                Label lbl = new Label(isMain ? "⭐ عکس اصلی" : (file.getName().length()>14?file.getName().substring(0,14)+"...":file.getName()));
+                lbl.setStyle(isMain ? "-fx-text-fill: #ffc83b; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn'; -fx-font-weight: bold;" : ls);
                 Button btnDel = new Button("✖ حذف");
-                btnDel.setStyle(btnStyle);
-                btnDel.setOnAction(e -> {
-                    selectedImageFiles.remove(idx < selectedImageFiles.size() ? idx : selectedImageFiles.size()-1);
-                    renderImageThumbs();
-                });
-
+                btnDel.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';");
+                btnDel.setOnAction(e -> { int si=idx<selectedImageFiles.size()?idx:selectedImageFiles.size()-1; selectedImageFiles.remove(si); if(mainImageIndex>=selectedImageFiles.size()) mainImageIndex=0; renderImageThumbs(); });
                 VBox box = new VBox(5, iv, lbl, btnDel);
+                if (!isMain) {
+                    Button bm = new Button("⭐ عکس اصلی");
+                    bm.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';");
+                    bm.setOnAction(e -> { mainImageIndex=idx; renderImageThumbs(); });
+                    box.getChildren().add(bm);
+                }
                 box.setAlignment(Pos.CENTER);
-                box.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
+                box.setStyle("-fx-background-color: #241942; -fx-border-color: "+(isMain?"#ffc83b":"#3b286b")+"; -fx-border-width: "+(isMain?"2":"1")+"; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
                 imageThumbsPane.getChildren().add(box);
             } catch (Exception ignored) {}
         }
         if (selectedImageFiles.isEmpty()) {
-            Label lbl = new Label("🖼️ هیچ عکسی انتخاب نشده");
+            Label lbl = new Label("\ud83d\uddbc\ufe0f هیچ عکسی انتخاب نشده");
             lbl.setStyle("-fx-text-fill: #8b7ca6; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
             imageThumbsPane.getChildren().add(lbl);
         }
@@ -265,6 +262,10 @@ public class RegisterAdController {
         // 🚨 لاگ وضعیت برای خطایابی سریع
         System.out.println("====== 🔍 تست وضعیت دکمه ثبت ======");
         System.out.println("📸 تعداد عکس‌های انتخابی: " + selectedImageFiles.size());
+        if (mainImageIndex > 0 && mainImageIndex < selectedImageFiles.size()) {
+            selectedImageFiles.add(0, selectedImageFiles.remove(mainImageIndex));
+            mainImageIndex = 0;
+        }
 
         // اعتبارسنجی اولیه فرم
         if (title.isEmpty() || priceText.isEmpty() || description.isEmpty() || selectedCity == null || selectedCategory == null) {
@@ -491,6 +492,7 @@ public class RegisterAdController {
             subCategoryInput.setManaged(false);
         }
         selectedImageFiles.clear();
+        mainImageIndex = 0;
         renderImageThumbs();
     }
 
