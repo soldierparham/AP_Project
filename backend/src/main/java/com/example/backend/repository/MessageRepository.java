@@ -16,4 +16,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     // 🔧 جدید: حذف همه پیام‌های یک مکالمه (برای cascade delete هنگام حذف آگهی)
     void deleteByConversationId(Long conversationId);
+
+    // آخرین پیام یک مکالمه
+    java.util.Optional<Message> findTopByConversationIdOrderByTimestampDesc(Long conversationId);
 }

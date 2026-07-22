@@ -145,6 +145,14 @@ public class ChatRestController {
             item.put("adTitle", adTitle);
             item.put("buyerUsername", c.getBuyerUsername());
             item.put("sellerUsername", c.getSellerUsername());
+            messageRepository.findTopByConversationIdOrderByTimestampDesc(c.getId())
+                .ifPresentOrElse(last -> {
+                    item.put("lastMessageContent", last.getContent());
+                    item.put("lastMessageSender", last.getSenderUsername());
+                }, () -> {
+                    item.put("lastMessageContent", "");
+                    item.put("lastMessageSender", "");
+                });
             data.add(item);
         }
 

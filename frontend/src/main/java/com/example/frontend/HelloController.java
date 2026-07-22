@@ -559,6 +559,8 @@ public class HelloController {
             String seller = extractJsonField(convJson, "sellerUsername");
             String adTitle = extractJsonField(convJson, "adTitle");
             String otherUser = buyer.equals(MainApplication.currentUsername) ? seller : buyer;
+            String lastMsgContent = extractJsonField(convJson, "lastMessageContent");
+            String lastMsgSender  = extractJsonField(convJson, "lastMessageSender");
 
             // آواتار دایره‌ای با حرف اول نام مخاطب
             Label avatar = new Label(otherUser.isEmpty() ? "?" : otherUser.substring(0, 1).toUpperCase());
@@ -573,7 +575,21 @@ public class HelloController {
             Label lblAd = new Label("\ud83c\udff7\ufe0f درباره آگهی: " + adTitle);
             lblAd.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
 
-            VBox infoBox = new VBox(4, lblName, lblAd);
+            VBox infoBox;
+            if (!lastMsgContent.isEmpty()) {
+                String senderLabel = lastMsgSender.equals(MainApplication.currentUsername)
+                    ? "شما"
+                    : lastMsgSender;
+                String preview = lastMsgContent.length() > 38
+                    ? lastMsgContent.substring(0, 38) + "..."
+                    : lastMsgContent;
+                Label lblLastMsg = new Label(senderLabel + ": " + preview);
+                lblLastMsg.setStyle("-fx-text-fill: #8b7ca6; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn'; -fx-font-style: italic;");
+                lblLastMsg.setMaxWidth(260);
+                infoBox = new VBox(3, lblName, lblAd, lblLastMsg);
+            } else {
+                infoBox = new VBox(4, lblName, lblAd);
+            }
             infoBox.setAlignment(Pos.CENTER_RIGHT);
 
             Region spacer = new Region();
@@ -774,7 +790,7 @@ public class HelloController {
 
     private void handleUnauthorized(int statusCode) {
         Stage stage = (Stage) mainBorderPane.getScene().getWindow();
-        MainApplication.redirectToLogin(stage, "نشست شما منقضی شده است. لطفاً دوباره ورو�� کنید.");
+        MainApplication.redirectToLogin(stage, "نشست شما منقضی شده است. لطفاً دوباره ورود کنید.");
     }
 
     private void showSuccessAlert(String message) {
@@ -1255,7 +1271,7 @@ public class HelloController {
         Label lblHeader = new Label("\u270f\ufe0f ویرایش آگهی");
         lblHeader.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
 
-        Label lblHint = new Label("پس از ویرایش، آگهی دوباره برای ��ازبینی به مدیر ارسال می‌شود.");
+        Label lblHint = new Label("پس از ویرایش، آگهی دوباره برای بازبینی به مدیر ارسال می‌شود.");
         lblHint.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
 
         String inputStyle = "-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';";
@@ -1450,7 +1466,7 @@ public class HelloController {
         mainBorderPane.setCenter(scrollPane);
     }
 
-    /** 🖼️ ساخت پیش‌نمایش کوچک عکس با برچسب و دکمه حذف ت��ی. */
+    /** 🖼️ ساخت پیش‌نمایش کوچک عکس با برچسب و دکمه حذف تکی. */
     private VBox buildImageThumb(Image image, String tag, Runnable onRemove) {
         ImageView iv = new ImageView(image);
         iv.setFitWidth(140);
@@ -1714,7 +1730,7 @@ public class HelloController {
                         if ("0".equals(count) || "مشخص نشده".equals(count)) {
                             target.setText("\u2b50 امتیاز فروشنده: بدون امتیاز");
                         } else {
-                            target.setText("\u2b50 امتیاز فرو��نده: " + average + " (از " + count + " رای)");
+                            target.setText("\u2b50 امتیاز فروشنده: " + average + " (از " + count + " رای)");
                         }
                     } else {
                         target.setText("\u2b50 امتیاز فروشنده: نامشخص");
