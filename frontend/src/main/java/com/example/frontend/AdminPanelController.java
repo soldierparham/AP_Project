@@ -370,7 +370,26 @@ public class AdminPanelController {
         categoryParentCombo = new javafx.scene.control.ComboBox<>();
         categoryParentCombo.getItems().add("— دسته اصلی —");
         categoryParentCombo.setValue("— دسته اصلی —");
-        categoryParentCombo.setStyle("-fx-background-color: #3b286b; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';");
+        categoryParentCombo.setPrefWidth(160);
+        categoryParentCombo.setMinWidth(130);
+        categoryParentCombo.setStyle(
+            "-fx-background-color: #3b286b; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn'; -fx-text-fill: white; -fx-prompt-text-fill: #b9a6df; -fx-font-size: 13px;");
+        // فقط لیست بازشونده را تم می‌کنیم — شکل دکمه دست نخورده نمی‌شود
+        categoryParentCombo.setCellFactory(lv -> {
+            lv.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b;");
+            javafx.scene.control.ListCell<String> cell = new javafx.scene.control.ListCell<>() {
+                @Override protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setText(empty ? null : item);
+                }
+            };
+            final String norm = "-fx-background-color: #241942; -fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn'; -fx-padding: 7 12 7 12;";
+            final String hovr = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-font-family: 'Vazirmatn'; -fx-padding: 7 12 7 12;";
+            cell.setStyle(norm);
+            cell.setOnMouseEntered(e -> cell.setStyle(hovr));
+            cell.setOnMouseExited(e -> cell.setStyle(norm));
+            return cell;
+        });
 
         HBox controls = new HBox(10, txtName, categoryParentCombo, btnAdd);
         controls.setPadding(new Insets(10, 15, 0, 15));

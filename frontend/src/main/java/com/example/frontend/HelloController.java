@@ -1605,6 +1605,81 @@ public class HelloController {
 
     // ---------------------------------------------------------- صفحه جزئیات آگهی
 
+
+    // ——— نمایشگر تصویر با قابلیت زوم و جابجایی ———
+    private void showImageZoom(String imageUrl) {
+        javafx.stage.Stage zoomStage = new javafx.stage.Stage();
+        zoomStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        zoomStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
+        zoomStage.setTitle("نمایش تصویر");
+
+        ImageView iv = new ImageView(new Image(imageUrl, true));
+        iv.setPreserveRatio(true);
+        iv.setFitWidth(800);
+        iv.setFitHeight(600);
+        iv.setSmooth(true);
+
+        javafx.scene.layout.StackPane imgHolder = new javafx.scene.layout.StackPane(iv);
+        imgHolder.setStyle("-fx-background-color: transparent;");
+
+        // دکمه‌های زوم + / -
+        Button btnZoomIn  = new Button("+");
+        Button btnZoomOut = new Button("-");
+        Button btnClose   = new Button("✕ بستن");
+        String zBtnStyle = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; "
+            + "-fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 8; "
+            + "-fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-min-width: 44; -fx-min-height: 36;";
+        btnZoomIn.setStyle(zBtnStyle);
+        btnZoomOut.setStyle(zBtnStyle);
+        btnClose.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; "
+            + "-fx-font-size: 13px; -fx-font-weight: bold; -fx-background-radius: 8; "
+            + "-fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+
+        final double[] scale = {1.0};
+        Runnable applyScale = () -> {
+            scale[0] = Math.max(0.3, Math.min(scale[0], 5.0));
+            iv.setScaleX(scale[0]);
+            iv.setScaleY(scale[0]);
+        };
+        btnZoomIn.setOnAction(e  -> { scale[0] += 0.2; applyScale.run(); });
+        btnZoomOut.setOnAction(e -> { scale[0] -= 0.2; applyScale.run(); });
+        btnClose.setOnAction(e   -> zoomStage.close());
+
+        HBox toolbar = new HBox(10, btnZoomIn, btnZoomOut, btnClose);
+        toolbar.setAlignment(Pos.CENTER);
+        toolbar.setPadding(new Insets(8));
+        toolbar.setStyle("-fx-background-color: #160f29;");
+
+        // زوم با اسکرول ماوس
+        iv.setOnScroll(ev -> {
+            scale[0] += ev.getDeltaY() > 0 ? 0.1 : -0.1;
+            applyScale.run();
+        });
+
+        // دراگ برای جابجایی
+        final double[] dragStart = {0, 0};
+        iv.setOnMousePressed(ev -> { dragStart[0] = ev.getSceneX() - iv.getTranslateX();
+                                     dragStart[1] = ev.getSceneY() - iv.getTranslateY(); });
+        iv.setOnMouseDragged(ev -> { iv.setTranslateX(ev.getSceneX() - dragStart[0]);
+                                     iv.setTranslateY(ev.getSceneY() - dragStart[1]); });
+
+        javafx.scene.layout.BorderPane root = new javafx.scene.layout.BorderPane();
+        root.setTop(toolbar);
+        root.setCenter(imgHolder);
+        root.setStyle("-fx-background-color: #0d0820;");
+
+        javafx.scene.Scene scene = new javafx.scene.Scene(root, 860, 660);
+        // ESC برای بستن
+        scene.setOnKeyPressed(ev -> {
+            if (ev.getCode() == javafx.scene.input.KeyCode.ESCAPE) zoomStage.close();
+            else if (ev.getCode() == javafx.scene.input.KeyCode.PLUS
+                  || ev.getCode() == javafx.scene.input.KeyCode.EQUALS) { scale[0] += 0.2; applyScale.run(); }
+            else if (ev.getCode() == javafx.scene.input.KeyCode.MINUS) { scale[0] -= 0.2; applyScale.run(); }
+        });
+        zoomStage.setScene(scene);
+        zoomStage.show();
+    }
+
     private void openAdDetailsPage(long adId, String title, String description,
                                    String rawPrice, String owner, String imageUrl) {
         VBox detailsBox = new VBox(15);
@@ -1660,6 +1735,11 @@ public class HelloController {
                 showCurrentImage.run();
             });
 
+            imageViewGallery.setCursor(javafx.scene.Cursor.HAND);
+            imageViewGallery.setOnMouseClicked(ev -> {
+                String url = BASE_URL + imageSources.get(currentIndex[0]);
+                showImageZoom(url);
+            });
             gallery.getChildren().add(imageViewGallery);
 
             // دکمه‌های جابجایی فقط وقتی بیش از یک عکس وجود دارد
