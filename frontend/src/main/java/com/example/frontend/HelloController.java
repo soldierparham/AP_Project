@@ -1621,6 +1621,13 @@ public class HelloController {
 
         javafx.scene.layout.StackPane imgHolder = new javafx.scene.layout.StackPane(iv);
         imgHolder.setStyle("-fx-background-color: transparent;");
+        // كليپ: عكس از محدوده StackPane بيرون نمي‌زند (روي نوار دكمه‌ها نمي‌آيد)
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        imgHolder.layoutBoundsProperty().addListener((obs, ov, nv) -> {
+            clip.setWidth(nv.getWidth());
+            clip.setHeight(nv.getHeight());
+        });
+        imgHolder.setClip(clip);
 
         // دکمه‌های زوم + / -
         Button btnZoomIn  = new Button("+");
