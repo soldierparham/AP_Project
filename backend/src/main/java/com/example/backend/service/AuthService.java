@@ -6,6 +6,7 @@ import com.example.backend.dto.RegisterRequest;
 import com.example.backend.model.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtUtil;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,14 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    public boolean isUsernameExists(String username) {
+        return userRepository.existsByUsername(username);
+    }
+
+    public boolean isPhoneNumberExists(String phoneNumber) {
+        return userRepository.existsByPhoneNumber(phoneNumber);
+    }
+
     /**
      * ثبت‌نام کاربر جدید همراه با اعتبارسنجی + هش شدن رمز عبور
      */
@@ -39,11 +48,22 @@ public class AuthService {
             throw new IllegalArgumentException("این شماره تماس قبلاً در سیستم ثبت شده است.");
         }
 
+        // ایمیل خالی به null تبدیل می‌شود تا محدودیت UNIQUE روی ایمیل‌های خالی خطا ندهد
+        String email = dto.getEmail() == null ? null : dto.getEmail().trim();
+        if (email != null && email.isEmpty()) {
+            email = null;
+        }
+
+        // بررسی تکراری نبودن ایمیل (ستون ایمیل در دیتابیس UNIQUE است)
+        if (email != null && userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("این ایمیل قبلاً توسط کاربر دیگری ثبت شده است.");
+        }
+
         User user = new User();
         user.setName(dto.getName());
         user.setUsername(dto.getUsername());
         user.setPhoneNumber(dto.getPhoneNumber());
-        user.setEmail(dto.getEmail());
+        user.setEmail(email);
         // 🔐 ذخیره رمز به صورت هش‌شده (دیگر رمز خام در دیتابیس ذخیره نمی‌شود)
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setRole("USER");
@@ -116,6 +136,36 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             return user.getJwtToken() != null && user.getJwtToken().equals(incomingToken);
+        }
+        return false;
+    }
+
+    /**
+     * 🔍 اعتبارسنجی سشن و بررسی هوشمند انقضای توکن
+     */
+    @Transactional
+    public boolean checkSession(String identifier, String incomingToken) {
+        Optional<User> userOpt = userRepository.findByPhoneNumber(identifier)
+                .or(() -> userRepository.findByUsername(identifier));
+
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+
+            if (user.getJwtToken() == null || !user.getJwtToken().equals(incomingToken)) {
+                return false;
+            }
+
+            try {
+                boolean isValid = jwtUtil.validateToken(incomingToken, user.getUsername());
+                return isValid;
+            } catch (ExpiredJwtException e) {
+                user.setJwtToken(null);
+                userRepository.saveAndFlush(user);
+                System.out.println("🧹 [CheckSession] توکن منقضی شده کاربر " + user.getUsername() + " در دیتابیس null شد.");
+                return false;
+            } catch (Exception e) {
+                return false;
+            }
         }
         return false;
     }
