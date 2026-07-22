@@ -517,32 +517,42 @@ public class HelloController {
     }
 
     private void renderConversationsList(String responseBody) {
-        VBox listBox = new VBox(10);
-        listBox.setPadding(new Insets(20));
+        VBox listBox = new VBox(12);
+        listBox.setPadding(new Insets(25));
         listBox.setStyle("-fx-background-color: #160f29;");
 
         Label lblHeader = new Label("\ud83d\udcac گفتگوهای شما");
-        lblHeader.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 18px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+        lblHeader.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        // نشان تعداد گفتگوها کنار عنوان
+        Label lblCount = new Label();
+        lblCount.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 12; -fx-padding: 3 10 3 10; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
 
         Button btnHomeList = new Button("\ud83c\udfe0 صفحه اصلی");
-        btnHomeList.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnHomeList.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-padding: 8 14 8 14; -fx-font-family: 'Vazirmatn';");
         btnHomeList.setOnAction(e -> showHomeScreen());
 
         Region headerSpacer = new Region();
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
-        HBox headerRow = new HBox(10, lblHeader, headerSpacer, btnHomeList);
+        HBox headerRow = new HBox(10, lblHeader, lblCount, headerSpacer, btnHomeList);
         headerRow.setAlignment(Pos.CENTER_LEFT);
         listBox.getChildren().add(headerRow);
+
+        // خط جداکننده زیر هدر
+        Region headerDivider = new Region();
+        headerDivider.setPrefHeight(1);
+        headerDivider.setStyle("-fx-background-color: #3b286b;");
+        listBox.getChildren().add(headerDivider);
 
         int dataIndex = responseBody.indexOf("\"data\"");
         String dataPart = dataIndex >= 0 ? responseBody.substring(dataIndex) : responseBody;
 
         Matcher matcher = Pattern.compile("\\{([^}]+)\\}").matcher(dataPart);
-        boolean anyFound = false;
+        int convCount = 0;
         while (matcher.find()) {
             String convJson = matcher.group(1);
             if (!convJson.contains("\"buyerUsername\"")) continue;
-            anyFound = true;
+            convCount++;
 
             String convIdStr = extractJsonField(convJson, "id");
             String buyer = extractJsonField(convJson, "buyerUsername");
@@ -550,22 +560,59 @@ public class HelloController {
             String adTitle = extractJsonField(convJson, "adTitle");
             String otherUser = buyer.equals(MainApplication.currentUsername) ? seller : buyer;
 
-            Button btnConv = new Button("\ud83d\udcac گفتگو با " + otherUser + " — " + adTitle);
-            btnConv.setMaxWidth(Double.MAX_VALUE);
-            btnConv.setStyle("-fx-background-color: #241942; -fx-text-fill: white; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10; -fx-cursor: hand; -fx-alignment: center-right; -fx-padding: 12; -fx-font-family: 'Vazirmatn';");
-            btnConv.setOnAction(e -> {
+            // آواتار دایره‌ای با حرف اول نام مخاطب
+            Label avatar = new Label(otherUser.isEmpty() ? "?" : otherUser.substring(0, 1).toUpperCase());
+            avatar.setMinSize(44, 44);
+            avatar.setMaxSize(44, 44);
+            avatar.setAlignment(Pos.CENTER);
+            avatar.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-font-size: 18px; -fx-font-weight: bold; -fx-background-radius: 22; -fx-font-family: 'Vazirmatn';");
+
+            Label lblName = new Label(otherUser);
+            lblName.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+            Label lblAd = new Label("\ud83c\udff7\ufe0f درباره آگهی: " + adTitle);
+            lblAd.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+
+            VBox infoBox = new VBox(4, lblName, lblAd);
+            infoBox.setAlignment(Pos.CENTER_RIGHT);
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            Label chevron = new Label("\u276e");
+            chevron.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 16px;");
+
+            HBox card = new HBox(12, avatar, infoBox, spacer, chevron);
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.setPadding(new Insets(12, 16, 12, 16));
+            String cardNormal = "-fx-background-color: #241942; -fx-background-radius: 14; -fx-border-color: #3b286b; -fx-border-radius: 14; -fx-cursor: hand;";
+            String cardHover = "-fx-background-color: #2b1f4e; -fx-background-radius: 14; -fx-border-color: #ffc83b; -fx-border-radius: 14; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(255,200,59,0.35), 16, 0.2, 0, 2);";
+            card.setStyle(cardNormal);
+            card.setOnMouseEntered(e -> card.setStyle(cardHover));
+            card.setOnMouseExited(e -> card.setStyle(cardNormal));
+            card.setOnMouseClicked(e -> {
                 try {
                     openChatPane(Long.parseLong(convIdStr), otherUser, adTitle);
                 } catch (NumberFormatException ignored) {
                 }
             });
-            listBox.getChildren().add(btnConv);
+            listBox.getChildren().add(card);
         }
+        lblCount.setText(convCount + " گفتگو");
 
-        if (!anyFound) {
-            Label lblEmpty = new Label("هنوز گفتگویی ندارید. از صفحه جزئیات آگهی می‌توانید گفتگو را شروع کنید.");
-            lblEmpty.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
-            listBox.getChildren().add(lblEmpty);
+        if (convCount == 0) {
+            // حالت خالی: کارت راهنمای وسط‌چین
+            Label lblEmptyIcon = new Label("\ud83d\udcac");
+            lblEmptyIcon.setStyle("-fx-font-size: 42px;");
+            Label lblEmpty = new Label("هنوز گفتگویی ندارید");
+            lblEmpty.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+            Label lblEmptyHint = new Label("از صفحه جزئیات هر آگهی می‌توانید با فروشنده گفتگو را شروع کنید.");
+            lblEmptyHint.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+            VBox emptyBox = new VBox(8, lblEmptyIcon, lblEmpty, lblEmptyHint);
+            emptyBox.setAlignment(Pos.CENTER);
+            emptyBox.setPadding(new Insets(40));
+            emptyBox.setStyle("-fx-background-color: #241942; -fx-background-radius: 14; -fx-border-color: #3b286b; -fx-border-radius: 14;");
+            listBox.getChildren().add(emptyBox);
         }
 
         ScrollPane scrollPane = new ScrollPane(listBox);
