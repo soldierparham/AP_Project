@@ -242,9 +242,12 @@ public class AdvertisementService {
             existingAd.setImageUrl(imageUrl);
         }
 
-        // 🟡 بازگشت به صف بررسی مدیر پس از ویرایش
-        existingAd.setStatus("PENDING");
-        existingAd.setAdminNote(null);
+        // 🟡 فقط وقتی غیر از عکس تغییر کرده باشد، به صف بررسی مدیر برمی‌گرد
+        boolean onlyImage = Boolean.TRUE.equals(updatedData.get("onlyImageUpdate"));
+        if (!onlyImage) {
+            existingAd.setStatus("PENDING");
+            existingAd.setAdminNote(null);
+        }
 
         return advertisementRepository.save(existingAd);
     }

@@ -9,6 +9,11 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -218,6 +223,11 @@ public class AdminPanelController {
         HBox actions = new HBox(10);
         actions.setAlignment(Pos.CENTER_LEFT);
 
+        Button btnView = new Button("👁 مشاهده کامل");
+        btnView.setStyle("-fx-background-color: #1565c0; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+        btnView.setOnAction(e -> showAdDetail(ad));
+        actions.getChildren().add(btnView);
+
         if (!"ACTIVE".equalsIgnoreCase(status)) {
             Button btnApprove = new Button("✅ تایید");
             btnApprove.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
@@ -257,6 +267,115 @@ public class AdminPanelController {
 
         card.getChildren().add(actions);
         return card;
+    }
+
+    // ---------------------------------------------------------- نمایش کامل آگهی برای مدیر
+
+    /** 👁 نمایش کامل آگهی (عکس‌ها، توضیحات و مشخصات) در پنجره جداگانه */
+    private void showAdDetail(JsonNode ad) {
+        Stage dlg = new Stage();
+        dlg.initModality(Modality.APPLICATION_MODAL);
+        dlg.setTitle("مشاهده آگهی: " + ad.path("title").asText(""));
+
+        VBox root = new VBox(15);
+        root.setPadding(new Insets(25, 35, 25, 35));
+        root.setAlignment(Pos.TOP_RIGHT);
+        root.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        root.setStyle("-fx-background-color: #160f29;");
+
+        String keyStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';";
+        String valStyle = "-fx-text-fill: white; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn'; -fx-font-weight: bold;";
+
+        Label hdr = new Label("🏷️ " + ad.path("title").asText("بدون عنوان"));
+        hdr.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        String status = ad.path("status").asText("-");
+        String stColor = "ACTIVE".equalsIgnoreCase(status) ? "#2e7d32"
+                : "REJECTED".equalsIgnoreCase(status) ? "#b71c1c"
+                : "PENDING".equalsIgnoreCase(status) ? "#e65100" : "#3b286b";
+        Label lblStatus = new Label("وضعیت: " + status);
+        lblStatus.setStyle("-fx-background-color: " + stColor + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-padding: 4 10 4 10; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(20); grid.setVgap(8);
+        String[][] rows = {
+            {"فروشنده", ad.path("ownerUsername").asText("-")},
+            {"قیمت", ad.path("price").asText("-") + " تومان"},
+            {"شهر", ad.path("city").asText("-")},
+            {"دسته‌بندی", ad.path("category").asText("-")},
+        };
+        for (int r = 0; r < rows.length; r++) {
+            Label k = new Label(rows[r][0] + ":"); k.setStyle(keyStyle);
+            Label v = new Label(rows[r][1]); v.setStyle(valStyle);
+            grid.add(k, 0, r); grid.add(v, 1, r);
+        }
+
+        Label lblDescHdr = new Label("توضیحات:"); lblDescHdr.setStyle(keyStyle);
+        String desc = ad.path("description").asText("");
+        Label lblDesc = new Label(desc.isBlank() ? "—" : desc);
+        lblDesc.setStyle("-fx-text-fill: #e0e0e0; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+        lblDesc.setWrapText(true); lblDesc.setMaxWidth(560);
+
+        VBox noteBox = new VBox(4);
+        String note = ad.path("adminNote").asText("");
+        if (!note.isBlank() && !"null".equals(note)) {
+            Label nh = new Label("📝 یادداشت مدیر:"); nh.setStyle(keyStyle);
+            Label nv = new Label(note);
+            nv.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+            nv.setWrapText(true); nv.setMaxWidth(560);
+            noteBox.getChildren().addAll(nh, nv);
+        }
+
+        Label imgHdr = new Label("🖼️ تصاویر آگهی:"); imgHdr.setStyle(keyStyle);
+        FlowPane gallery = new FlowPane(10, 10);
+        String rawImg = ad.path("imageUrl").asText("");
+        if (rawImg.isBlank() || "null".equals(rawImg)) rawImg = ad.path("image_url").asText("");
+        if (!rawImg.isBlank() && !"null".equals(rawImg)) {
+            boolean first = true;
+            for (String p : rawImg.split(",")) {
+                String src = p.trim();
+                if (src.isEmpty()) continue;
+                String full = src.startsWith("http") ? src : BASE_URL + src;
+                try {
+                    ImageView iv = new ImageView(new Image(full, 180, 135, false, true, true));
+                    iv.setFitWidth(180); iv.setFitHeight(135); iv.setPreserveRatio(false);
+                    VBox ib = new VBox(4, iv);
+                    if (first) {
+                        Label ml = new Label("⭐ عکس اصلی");
+                        ml.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn'; -fx-font-weight: bold;");
+                        ib.getChildren().add(ml);
+                        first = false;
+                    }
+                    ib.setAlignment(Pos.CENTER);
+                    ib.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 6;");
+                    gallery.getChildren().add(ib);
+                } catch (Exception ignored) {}
+            }
+        }
+        if (gallery.getChildren().isEmpty()) {
+            Label nl = new Label("این آگهی عکسی ندارد.");
+            nl.setStyle("-fx-text-fill: #8b7ca6; -fx-font-family: 'Vazirmatn';");
+            gallery.getChildren().add(nl);
+        }
+
+        Button btnClose = new Button("✖ بستن");
+        btnClose.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px;");
+        btnClose.setPrefHeight(40); btnClose.setMinWidth(130);
+        btnClose.setOnAction(e -> dlg.close());
+        HBox closeRow = new HBox(btnClose);
+        closeRow.setAlignment(Pos.CENTER);
+        VBox.setMargin(closeRow, new Insets(10, 0, 0, 0));
+
+        root.getChildren().addAll(hdr, lblStatus, new Separator(), grid, new Separator(), lblDescHdr, lblDesc);
+        if (!noteBox.getChildren().isEmpty()) root.getChildren().add(noteBox);
+        root.getChildren().addAll(imgHdr, gallery, closeRow);
+
+        ScrollPane sp = new ScrollPane(root);
+        sp.setFitToWidth(true);
+        sp.setStyle("-fx-background: #160f29; -fx-background-color: #160f29;");
+
+        dlg.setScene(new Scene(sp, 660, 620));
+        dlg.show();
     }
 
     // ---------------------------------------------------------- تب کاربران
