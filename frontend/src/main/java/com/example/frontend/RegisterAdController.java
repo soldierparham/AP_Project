@@ -3,6 +3,7 @@ package com.example.frontend;
 import javafx.application.Platform;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -61,6 +62,9 @@ public class RegisterAdController {
 
     // 🖼️ لیست عکس‌های انتخاب‌شده (به جای تک‌فایل قبلی)
     private final List<File> selectedImageFiles = new ArrayList<>();
+
+    // ⭐ ایندکس عکس اصلی در selectedImageFiles — مشابه منطق mainIdx در بخش ویرایش آگهی (HelloController)
+    private int mainIdx = 0;
 
     private HelloController helloController;
     private final HttpClient client = HttpClient.newHttpClient();
@@ -209,59 +213,30 @@ public class RegisterAdController {
     }
 
     /**
-     * 🖼️ نمایش thumbnail هر عکس انتخاب‌شده با دکمه حذف و دکمه «تعیین به‌عنوان عکس اصلی».
-     * عکسی که در ابتدای لیست (اینتدکس 0) قرار دارد همان عکسی است که بک‌اند به‌عنوان کاور/عکس اصلی آگهی
-     * در لیست و جزئیات استفاده می‌کند (اولین مقدار رشته‌بندی شده با کاما). قبلاً هیچ راهی برای تعیین
-     * عکس اصلی وجود ندارد و فقط ترتیب انتخاب ملاک بود.
+     * 🖼️ نمایش thumbnail هر عکس انتخاب‌شده.
+     * دقیقاً همان الگو و طراحی بخش «ویرایش آگهی» (HelloController.buildImageThumb) است:
+     * عکس اصلی کادر طلایی دارد و برای تعیین عکس دیگر به‌عنوان اصلی، دکمه ⭐ روی همان عکس زده می‌شود.
+     * ترتیب واقعی لیست تا لحظهٔ ارسال تگییر نمی‌کند؛ فقط mainIdx ذخیره می‌شود و همین عکس
+     * در لحظهٔ ارسال (onSubmitAdClick) به ابتدای لیست منتقل می‌شود.
      */
     private void renderImageThumbs() {
         if (imageThumbsPane == null) return;
         imageThumbsPane.getChildren().clear();
-        String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';";
-        String btnStyle = "-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
-        String mainBtnActiveStyle = "-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 4; -fx-font-size: 10px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';";
-        String mainBtnInactiveStyle = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
+        int tot = selectedImageFiles.size();
+        if (mainIdx >= tot && tot > 0) mainIdx = 0;
         for (int i = 0; i < selectedImageFiles.size(); i++) {
             final int idx = i;
             File file = selectedImageFiles.get(i);
             try {
-                Image img = new Image(file.toURI().toString(), 120, 90, true, true, false);
-                ImageView iv = new ImageView(img);
-                iv.setFitWidth(120);
-                iv.setFitHeight(90);
-                iv.setPreserveRatio(false);
-                iv.setStyle("-fx-effect: dropshadow(gaussian,rgba(0,0,0,0.4),4,0,0,2);");
-
-                Label lbl = new Label(file.getName().length() > 14 ? file.getName().substring(0,14)+"..." : file.getName());
-                lbl.setStyle(labelStyle);
-
-                boolean isMain = idx == 0;
-                Button btnMain = new Button(isMain ? "⭐ عکس اصلی" : "☆ انتخاب به‌عنوان اصلی");
-                btnMain.setStyle(isMain ? mainBtnActiveStyle : mainBtnInactiveStyle);
-                btnMain.setDisable(isMain);
-                btnMain.setMaxWidth(Double.MAX_VALUE);
-                if (!isMain) {
-                    btnMain.setOnAction(e -> {
-                        File chosen = selectedImageFiles.remove(idx);
-                        selectedImageFiles.add(0, chosen);
-                        renderImageThumbs();
-                    });
-                }
-
-                Button btnDel = new Button("✖ حذف");
-                btnDel.setStyle(btnStyle);
-                btnDel.setMaxWidth(Double.MAX_VALUE);
-                btnDel.setOnAction(e -> {
-                    selectedImageFiles.remove(idx < selectedImageFiles.size() ? idx : selectedImageFiles.size()-1);
-                    renderImageThumbs();
-                });
-
-                VBox box = new VBox(5, iv, lbl, btnMain, btnDel);
-                box.setAlignment(Pos.CENTER);
-                box.setStyle(isMain
-                        ? "-fx-background-color: #241942; -fx-border-color: #ffc83b; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 7;"
-                        : "-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
-                imageThumbsPane.getChildren().add(box);
+                Image img = new Image(file.toURI().toString(), 140, 100, false, true, true);
+                String tag = file.getName().length() > 14 ? file.getName().substring(0, 14) + "..." : file.getName();
+                imageThumbsPane.getChildren().add(buildImageThumb(img, tag, idx == mainIdx,
+                        () -> {
+                            selectedImageFiles.remove(idx < selectedImageFiles.size() ? idx : selectedImageFiles.size() - 1);
+                            if (mainIdx >= selectedImageFiles.size()) mainIdx = 0;
+                            renderImageThumbs();
+                        },
+                        () -> { mainIdx = idx; renderImageThumbs(); }));
             } catch (Exception ignored) {}
         }
         if (selectedImageFiles.isEmpty()) {
@@ -269,6 +244,34 @@ public class RegisterAdController {
             lbl.setStyle("-fx-text-fill: #8b7ca6; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
             imageThumbsPane.getChildren().add(lbl);
         }
+    }
+
+    /** 🖼️ پیش‌نمایش کوچک عکس؛ عکس اصلی کادر طلایی دارد و بقیه دکمه ⭐ دارند. (عین پترن HelloController.buildImageThumb) */
+    private VBox buildImageThumb(Image image, String tag, boolean isMain, Runnable onRemove, Runnable onSetMain) {
+        ImageView iv = new ImageView(image);
+        iv.setFitWidth(140); iv.setFitHeight(100); iv.setPreserveRatio(false);
+        iv.setStyle("-fx-effect: dropshadow(gaussian,rgba(0,0,0,0.4),4,0,0,2);");
+
+        Label lblTag = new Label(isMain ? "⭐ عکس اصلی" : tag);
+        lblTag.setStyle(isMain
+                ? "-fx-text-fill: #ffc83b; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn'; -fx-font-weight: bold;"
+                : "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
+
+        Button btnR = new Button("🗑️ حذف");
+        btnR.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
+        btnR.setOnAction(e -> onRemove.run());
+
+        VBox box = new VBox(5, iv, lblTag, btnR);
+        if (!isMain) {
+            Button bm = new Button("⭐ عکس اصلی");
+            bm.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 6; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';");
+            bm.setOnAction(e -> onSetMain.run());
+            box.getChildren().add(bm);
+        }
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(8));
+        box.setStyle("-fx-background-color: #241942; -fx-border-color: " + (isMain ? "#ffc83b" : "#3b286b") + "; -fx-border-width: " + (isMain ? "2" : "1") + "; -fx-border-radius: 10; -fx-background-radius: 10;");
+        return box;
     }
 
     /**
@@ -302,9 +305,15 @@ public class RegisterAdController {
             return;
         }
 
-        // 🔄 آپلود چند عکس به صورت همزمان در یک درخواست
+        // 🔄 ��پلود چند عکس به صورت همزمان در یک درخواست
+        // ⭐ عکس اصلی انتخاب‌شده (mainIdx) را به ابتدای لیست منتقل می‌کنیم — عین منطق بخش ویرایش آگهی (HelloController)
+        List<File> orderedFiles = new ArrayList<>(selectedImageFiles);
+        if (mainIdx > 0 && mainIdx < orderedFiles.size()) {
+            orderedFiles.add(0, orderedFiles.remove(mainIdx));
+        }
+
         List<File> validFiles = new ArrayList<>();
-        for (File f : selectedImageFiles) {
+        for (File f : orderedFiles) {
             if (f != null && f.exists()) validFiles.add(f);
         }
 
@@ -514,6 +523,7 @@ public class RegisterAdController {
             subCategoryInput.setManaged(false);
         }
         selectedImageFiles.clear();
+        mainIdx = 0;
         renderImageThumbs();
     }
 
