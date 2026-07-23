@@ -436,16 +436,12 @@ public class AdminController {
         category.setName(newName);
         categoryRepository.save(category);
 
-        // به‌روزرسانی نام دسته در همه آگهی‌های مرتبط
-        List<Advertisement> ads = advertisementRepository.findByCategory(oldName);
-        for (Advertisement ad : ads) {
-            ad.setCategory(newName);
-        }
-        advertisementRepository.saveAll(ads);
+        // ✏️ به‌روزرسانی نام دسته در همه آگهی‌های قدیمی (منطق در AdvertisementService، بدون حساسیت به حروف)
+        int updatedAds = advertisementService.renameCategoryInAds(oldName, newName);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "message", "دسته‌بندی ویرایش شد و " + ads.size() + " آگهی مرتبط به‌روزرسانی گردید.",
+                "message", "دسته‌بندی ویرایش شد و " + updatedAds + " آگهی مرتبط به‌روزرسانی گردید.",
                 "data", category
         ));
     }
@@ -537,16 +533,12 @@ public class AdminController {
         city.setName(newName);
         cityRepository.save(city);
 
-        // به‌روزرسانی نام شهر در همه آگهی‌های مرتبط
-        List<Advertisement> ads = advertisementRepository.findByCity(oldName);
-        for (Advertisement ad : ads) {
-            ad.setCity(newName);
-        }
-        advertisementRepository.saveAll(ads);
+        // 🏙️ به‌روزرسانی نام شهر در همه آگهی‌های قدیمی (منطق در AdvertisementService، بدون حساسیت به حروف)
+        int updatedAds = advertisementService.renameCityInAds(oldName, newName);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "message", "شهر ویرایش شد و " + ads.size() + " آگهی مرتبط به‌روزرسانی گردید.",
+                "message", "شهر ویرایش شد و " + updatedAds + " آگهی مرتبط به‌روزرسانی گردید.",
                 "data", city
         ));
     }

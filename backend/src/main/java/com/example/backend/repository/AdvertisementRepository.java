@@ -73,4 +73,22 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, Lo
      * @return لیست نتایج
      */
     List<Advertisement> findByCity(String city);
+
+    // ✏️ جدید: آگهی‌های یک دسته‌بندی بدون حساسیت به بزرگی/کوچکی حروف (برای تغییر نام دسته)
+    /**
+     * آگهی‌های یک دسته‌بندی را بدون حساسیت به بزرگی/کوچکی حروف پیدا می‌کند.
+     *
+     * @param category دسته‌بندی
+     * @return لیست نتایج
+     */
+    List<Advertisement> findByCategoryIgnoreCase(String category);
+
+    // 🏙️ جدید: آگهی‌های یک شهر بدون حساسیت به بزرگی/کوچکی حروف (برای تغییر نام شهر)
+    /**
+     * آگهی‌های یک شهر را بدون حساسیت به بزرگی/کوچکی حروف پیدا می‌کند.
+     *
+     * @param city شهر
+     * @return لیست نتایج
+     */
+    List<Advertisement> findByCityIgnoreCase(String city);
 }

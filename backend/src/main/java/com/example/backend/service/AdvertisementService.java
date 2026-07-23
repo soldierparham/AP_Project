@@ -311,4 +311,42 @@ public class AdvertisementService {
         ratingRepository.deleteByAdvertisementId(id);
         advertisementRepository.deleteById(id);
     }
+
+    /**
+     * ✏️ به‌روزرسانی نام دسته‌بندی در همه آگهی‌های قدیمی پس از تغییر نام دسته توسط ادمین.
+     * مقایسه بدون حساسیت به بزرگی/کوچکی حروف انجام می‌شود تا هیچ آگهی قدیمی جا نماند.
+     *
+     * @param oldName نام قبلی دسته‌بندی
+     * @param newName نام جدید دسته‌بندی
+     * @return تعداد آگهی‌هایی که به‌روزرسانی شدند
+     */
+    @Transactional
+    public int renameCategoryInAds(String oldName, String newName) {
+        if (oldName == null || newName == null || oldName.isBlank()) return 0;
+        List<Advertisement> ads = advertisementRepository.findByCategoryIgnoreCase(oldName.trim());
+        for (Advertisement ad : ads) {
+            ad.setCategory(newName);
+        }
+        advertisementRepository.saveAll(ads);
+        return ads.size();
+    }
+
+    /**
+     * 🏙️ به‌روزرسانی نام شهر در همه آگهی‌های قدیمی پس از تغییر نام شهر توسط ادمین.
+     * مقایسه بدون حساسیت به بزرگی/کوچکی حروف انجام می‌شود تا هیچ آگهی قدیمی جا نماند.
+     *
+     * @param oldName نام قبلی شهر
+     * @param newName نام جدید شهر
+     * @return تعداد آگهی‌هایی که به‌روزرسانی شدند
+     */
+    @Transactional
+    public int renameCityInAds(String oldName, String newName) {
+        if (oldName == null || newName == null || oldName.isBlank()) return 0;
+        List<Advertisement> ads = advertisementRepository.findByCityIgnoreCase(oldName.trim());
+        for (Advertisement ad : ads) {
+            ad.setCity(newName);
+        }
+        advertisementRepository.saveAll(ads);
+        return ads.size();
+    }
 }
