@@ -21,6 +21,7 @@ public class LoginController {
     @FXML private PasswordField passwordField;
     @FXML private TextField passwordVisibleField;
     @FXML private Button btnTogglePassword;
+    @FXML private javafx.scene.control.Label lblInfoMessage;
 
     /**
      * 🔗 هم‌گام‌سازی فیلد رمز مخفی و فیلد رمز نمایان (برای دکمه چشم)
@@ -37,6 +38,16 @@ public class LoginController {
             btnTogglePassword.setText("");
             btnTogglePassword.setGraphic(eyeIcon(false));
         }
+    }
+
+    /** نمایش پیام اطلاع‌رسانی (مثل خروج موفق) داخل خود صفحه ورود با تم برنامه. */
+    public void showInfoMessage(String message) {
+        if (lblInfoMessage == null || message == null || message.isBlank()) {
+            return;
+        }
+        lblInfoMessage.setText(message);
+        lblInfoMessage.setVisible(true);
+        lblInfoMessage.setManaged(true);
     }
 
     // 🚫 جلوگیری از تایپ فاصله و کاراکترهای غیرمجاز در فیلد رمز عبور (تایپ و paste هر دو فیلتر می‌شوند)
