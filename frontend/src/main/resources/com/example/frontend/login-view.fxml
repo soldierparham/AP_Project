@@ -57,7 +57,7 @@
                                     <children>
                                         <PasswordField fx:id="passwordField" prefHeight="42.0" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 8; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
                                         <TextField fx:id="passwordVisibleField" prefHeight="42.0" visible="false" promptText="••••••••" style="-fx-background-color: #160f29; -fx-background-radius: 8; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-padding: 0 12 0 12; -fx-alignment: center-left; -fx-text-fill: white; -fx-prompt-text-fill: #8575a3;" />
-                                        <Button fx:id="btnTogglePassword" mnemonicParsing="false" onAction="#onTogglePasswordClick" text="👁" StackPane.alignment="CENTER_RIGHT" style="-fx-background-color: transparent; -fx-text-fill: #8575a3; -fx-cursor: hand; -fx-font-size: 13px; -fx-padding: 0 10 0 10;" />
+                                        <Button fx:id="btnTogglePassword" mnemonicParsing="false" onAction="#onTogglePasswordClick" text="" StackPane.alignment="CENTER_RIGHT" style="-fx-background-color: transparent; -fx-text-fill: #8575a3; -fx-cursor: hand; -fx-font-size: 13px; -fx-padding: 0 10 0 10;" />
                                     </children>
                                 </StackPane>
                             </children>

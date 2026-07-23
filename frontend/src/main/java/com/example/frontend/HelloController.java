@@ -113,7 +113,7 @@ public class HelloController {
         hoverMenu.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-width: 1; -fx-border-radius: 10; -fx-padding: 6; -fx-selection-bar: transparent; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
 
         CustomMenuItem profileItem = buildThemedMenuItem("\ud83d\udc64 آگهی‌های من", this::onLoadMyAdsClick);
-        CustomMenuItem favoritesItem = buildThemedMenuItem("\u2b50 علاقه‌مندی‌های من", this::showFavoritesScreen);
+        CustomMenuItem favoritesItem = buildThemedMenuItem("\u2764 علاقه‌مندی‌های من", this::showFavoritesScreen);
         CustomMenuItem logoutItem = buildThemedMenuItem("\ud83d\udeaa خروج از حساب", this::onLogoutClick);
 
         CustomMenuItem editProfileItem = buildThemedMenuItem("⚙️ ویرایش مشخصات", this::openProfileEditPage);
@@ -755,7 +755,7 @@ public class HelloController {
                             if (cachedIsFavoritesView) {
                                 showFavoritesScreen();
                             } else {
-                                if (sourceBtn != null) sourceBtn.setText("\u2b50 افزودن به علاقه‌مندی‌ها");
+                                if (sourceBtn != null) sourceBtn.setText("\u2764 افزودن به علاقه‌مندی‌ها");
                                 showSuccessAlert("آگهی از علاقه‌مندی‌های شما حذف شد.");
                             }
                         } else {
@@ -1043,7 +1043,7 @@ public class HelloController {
             boolean isFav = cachedIsFavoritesView || favoriteAdIds.contains(finalAdId);
             Button btnFav = new Button(isFav
                     ? "\ud83d\udc94 حذف از علاقه‌مندی‌ها"
-                    : "\u2b50 افزودن به علاقه‌مندی‌ها");
+                    : "\u2764 افزودن به علاقه‌مندی‌ها");
             btnFav.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
             btnFav.setOnMouseClicked(Event::consume);
             btnFav.setOnAction(e -> toggleFavorite(finalAdId, btnFav));
@@ -1854,7 +1854,7 @@ public class HelloController {
             boolean isFavDetail = favoriteAdIds.contains(adId);
             Button btnFavDetail = new Button(isFavDetail
                     ? "\ud83d\udc94 حذف از علاقه‌مندی‌ها"
-                    : "\u2b50 افزودن به علاقه‌مندی‌ها");
+                    : "\u2764 افزودن به علاقه‌مندی‌ها");
             btnFavDetail.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
             btnFavDetail.setOnAction(e -> toggleFavorite(adId, btnFavDetail));
 

@@ -1,5 +1,6 @@
 package com.example.frontend; // 📂 هماهنگ با پکیج جدید کنترلرها
 
+import com.example.frontend.MainApplication;
 import com.example.frontend.service.HttpService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -7,6 +8,8 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Modality;
@@ -29,6 +32,11 @@ public class LoginController {
         }
         restrictPasswordInput(passwordField);
         restrictPasswordInput(passwordVisibleField);
+
+        if (btnTogglePassword != null) {
+            btnTogglePassword.setText("");
+            btnTogglePassword.setGraphic(eyeIcon(false));
+        }
     }
 
     // 🚫 جلوگیری از تایپ فاصله و کاراکترهای غیرمجاز در فیلد رمز عبور (تایپ و paste هر دو فیلتر می‌شوند)
@@ -46,7 +54,19 @@ public class LoginController {
         boolean show = !passwordVisibleField.isVisible();
         passwordVisibleField.setVisible(show);
         passwordField.setVisible(!show);
-        btnTogglePassword.setText(show ? "🙈" : "👁");
+        btnTogglePassword.setText("");
+        btnTogglePassword.setGraphic(eyeIcon(show));
+    }
+
+    /** آیکون چشم (تصویر شفاف طلایی هماهنگ با تم) — جایگزین ایموجی چشم و میمون */
+    private javafx.scene.image.ImageView eyeIcon(boolean passwordShown) {
+        String path = passwordShown ? "/com/example/frontend/eye_closed.png" : "/com/example/frontend/eye_open.png";
+        javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(
+                new javafx.scene.image.Image(getClass().getResourceAsStream(path)));
+        iv.setFitWidth(20);
+        iv.setFitHeight(20);
+        iv.setPreserveRatio(true);
+        return iv;
     }
 
     /**
@@ -101,6 +121,11 @@ public class LoginController {
                     );
                     return null;
                 });
+    }
+
+    @FXML
+    private void onCancelClick() {
+        closeWindow();
     }
 
     /**
