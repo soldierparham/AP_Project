@@ -708,6 +708,7 @@ public class HelloController {
     protected void onLoadMyAdsClick() {
         setActiveTopBarSection("myDivar");
         setCategorySidebarVisible(true);
+        loadCategoriesIntoSidebar(); // 🗂️ تازه‌سازی دسته‌ها از سرور (تا تغییر نام توسط ادمین فوراً اعمال شود)
         // 🔍 فیلترها و جستجوی ردیف بالا روی آگهی‌های من هم اعمال می‌شود
         StringBuilder myUrl = new StringBuilder(BASE_URL + "/api/advertisements/my?sort=" + filterSort);
         String query = (searchField != null && searchField.getText() != null) ? searchField.getText().trim() : "";
@@ -1585,9 +1586,9 @@ public class HelloController {
 
         Label lblCat = new Label("دسته‌بندی"); lblCat.setStyle(labelStyle);
         ComboBox<String> cmbCategory = new ComboBox<>();
+        // 🗂️ فقط دسته‌های دریافتی از سرور (لیست هاردکد قدیمی حذف شد تا پس از تغییر نام، نام قدیمی دیده نشود)
         if (!serverCategoryTree.isEmpty()) cmbCategory.getItems().addAll(serverCategoryTree.keySet());
         else if (!serverCategories.isEmpty()) cmbCategory.getItems().addAll(serverCategories);
-        else cmbCategory.getItems().addAll("کالای دیجیتال", "وسایل نقلیه", "املاک", "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات");
         cmbCategory.setMaxWidth(Double.MAX_VALUE); cmbCategory.setPrefHeight(40);
         cmbCategory.setStyle(comboStyle);
         styleComboBox(cmbCategory);
@@ -1613,13 +1614,14 @@ public class HelloController {
             for (java.util.Map.Entry<String, java.util.List<String>> en : serverCategoryTree.entrySet())
                 if (en.getValue().contains(category)) { par = en.getKey(); break; }
             if (par != null) { cmbCategory.setValue(par); cmbSub.setValue(category); }
-            else { if (!cmbCategory.getItems().contains(category)) cmbCategory.getItems().add(category); cmbCategory.setValue(category); }
+            // نام قدیمی فقط به عنوان مقدار فعلی نمایش داده می‌شود و دیگر به لیست اضافه نمی‌شود (تا دسته ساختگی دیده نشود)
+            else { cmbCategory.setValue(category); }
         }
 
         Label lblCy = new Label("شهر"); lblCy.setStyle(labelStyle);
         ComboBox<String> cmbCity = new ComboBox<>();
         cmbCity.getItems().addAll(serverCities);
-        if (city != null && !city.isBlank() && !cmbCity.getItems().contains(city)) cmbCity.getItems().add(city);
+        // نام شهر قدیمی به لیست اضافه نمی‌شود؛ فقط به عنوان مقدار فعلی نمایش داده می‌شود
         cmbCity.setValue(city);
         cmbCity.setMaxWidth(Double.MAX_VALUE); cmbCity.setPrefHeight(40);
         cmbCity.setStyle(comboStyle);
@@ -2147,7 +2149,7 @@ public class HelloController {
     /**
      * دریافت و نمایش میانگین امتیاز فروشنده یک آگهی از سرور.
      *
-     * @param adId شناسه آگهی
+     * @param adId شنا��ه آگهی
      * @param target پارامتر target
      */
     private void loadSellerRating(long adId, Label target) {

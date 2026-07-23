@@ -74,15 +74,8 @@ public class RegisterAdController {
      */
     @FXML
     public void initialize() {
-        cityInput.getItems().addAll(
-                "تهران", "مشهد", "اصفهان", "شیراز", "تبریز",
-                "کرج", "اهواز", "قم", "کرمانشاه", "ارومیه", "رشت"
-        );
-
-        categoryInput.getItems().addAll(
-                "کالای دیجیتال", "وسایل نقلیه", "املاک",
-                "لوازم خانگی", "مد و پوشاک", "سرگرمی و فراغت", "خدمات"
-        );
+        // 🗂️ لیست دسته‌بندی‌ها و شهرها فقط از سرور خوانده می‌شود (loadCategoriesFromServer / loadCitiesFromServer)
+        // تا پس از تغییر نام توسط ادمین، نام‌های قدیمی هاردکدشده دوباره نمایش داده نشوند.
 
         // 🎨 هماهنگ‌سازی رنگ کمبوباکس‌ها با تم برنامه
         HelloController.styleComboBox(cityInput);
