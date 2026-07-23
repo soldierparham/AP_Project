@@ -130,8 +130,8 @@ public class RegisterController {
                 .thenAccept(response -> {
                     Platform.runLater(() -> {
                         if (response.statusCode() == 201) {
-                            showAlert(Alert.AlertType.INFORMATION, "موفقیت", "ثبت‌نام شما با موفقیت انجام شد.");
                             navigateToLogin(event);
+                            UiTheme.toast("ثبت‌نام شما با موفقیت انجام شد. اکنون وارد شوید.");
                         } else if (response.statusCode() == 409) {
                             showAlert(Alert.AlertType.ERROR, "خطا در ثبت‌نام", response.body());
                         } else {
@@ -155,6 +155,20 @@ public class RegisterController {
         navigateToLogin(event);
     }
 
+    /**
+     * دکمه انصراف (پاک کردن فیلدها یا بستن پنجره)
+     */
+    @FXML
+    void onCancelClick(ActionEvent event) {
+        nameField.clear();
+        usernameField.clear();
+        phoneField.clear();
+        emailField.clear();
+        passwordField.clear();
+        if (confirmPasswordField != null) {
+            confirmPasswordField.clear();
+        }
+    }
 
     /**
      * متد کمکی برای ناوبری و سوئیچ به صفحه لاگین
@@ -181,6 +195,7 @@ public class RegisterController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+        UiTheme.styleAlert(alert);
         alert.showAndWait();
     }
 }

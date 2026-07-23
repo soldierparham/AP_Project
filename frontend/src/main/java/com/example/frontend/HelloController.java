@@ -793,10 +793,9 @@ public class HelloController {
         MainApplication.redirectToLogin(stage, "نشست شما منقضی شده است. لطفاً دوباره ورود کنید.");
     }
 
+    /** ✅ اعلان موفقیت به‌صورت اعلان کوتاه (بدون پاپ‌آپ). */
     private void showSuccessAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
-        alert.setHeaderText(null);
-        alert.show();
+        UiTheme.toast(message);
     }
 
     private void showErrorAlert(String message) {
@@ -805,6 +804,7 @@ public class HelloController {
                         ? "عملیات ناموفق بود. لطفاً دوباره تلاش کنید." : message,
                 ButtonType.OK);
         alert.setHeaderText(null);
+        UiTheme.styleAlert(alert);
         alert.show();
     }
 
@@ -980,9 +980,14 @@ public class HelloController {
             btnDelete.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
             btnDelete.setOnMouseClicked(Event::consume);
             btnDelete.setOnAction(e -> {
-                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "این آگهی حذف شود؟", ButtonType.YES, ButtonType.NO);
+                ButtonType yesBt = new ButtonType("بله، حذف شود", javafx.scene.control.ButtonBar.ButtonData.YES);
+                ButtonType noBt = new ButtonType("انصراف", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "این آگهی حذف شود؟", yesBt, noBt);
+                confirm.setHeaderText(null);
+                confirm.setTitle("تایید حذف آگهی");
+                UiTheme.styleAlert(confirm);
                 confirm.showAndWait().ifPresent(bt -> {
-                    if (bt == ButtonType.YES) {
+                    if (bt == yesBt) {
                         deleteAd(finalAdId);
                     }
                 });
@@ -995,15 +1000,7 @@ public class HelloController {
                 Button btnSold = new Button("\u2705 فروخته شد");
                 btnSold.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
                 btnSold.setOnMouseClicked(Event::consume);
-                btnSold.setOnAction(e -> {
-                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                            "آگهی به وضعیت «فروخته شده» تغییر کند؟", ButtonType.YES, ButtonType.NO);
-                    confirm.showAndWait().ifPresent(bt -> {
-                        if (bt == ButtonType.YES) {
-                            markAdAsSold(finalAdId);
-                        }
-                    });
-                });
+                btnSold.setOnAction(e -> markAdAsSold(finalAdId));
                 actionsBox.getChildren().add(btnSold);
             }
 

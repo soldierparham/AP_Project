@@ -256,9 +256,14 @@ public class AdminPanelController {
         Button btnDelete = new Button("\ud83d\uddd1\ufe0f حذف");
         btnDelete.setStyle("-fx-background-color: #4a148c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
         btnDelete.setOnAction(e -> {
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "این آگهی برای همیشه حذف شود؟", ButtonType.YES, ButtonType.NO);
+            ButtonType yesBt = new ButtonType("بله، حذف شود", javafx.scene.control.ButtonBar.ButtonData.YES);
+            ButtonType noBt = new ButtonType("انصراف", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "این آگهی برای همیشه حذف شود؟", yesBt, noBt);
+            confirm.setHeaderText(null);
+            confirm.setTitle("تایید حذف آگهی");
+            UiTheme.styleAlert(confirm);
             confirm.showAndWait().ifPresent(bt -> {
-                if (bt == ButtonType.YES) {
+                if (bt == yesBt) {
                     deleteAdminAction("/api/admin/advertisements/" + id, () -> loadAds(statusCombo.getValue()));
                 }
             });
@@ -859,6 +864,7 @@ public class AdminPanelController {
         }
         Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
         alert.setHeaderText(null);
+        UiTheme.styleAlert(alert);
         alert.show();
     }
 }

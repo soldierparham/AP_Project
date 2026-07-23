@@ -1,6 +1,5 @@
 package com.example.frontend; // 📂 هماهنگ با پکیج جدید کنترلرها
 
-import com.example.frontend.MainApplication;
 import com.example.frontend.service.HttpService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -8,8 +7,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.DialogPane;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Modality;
@@ -86,10 +83,9 @@ public class LoginController {
                             System.out.println("✅ توکن ذخیره شد: " + MainApplication.jwtToken);
                             System.out.println("👤 کاربر جاری سیستم: " + MainApplication.currentUsername);
 
-                            showAlert(Alert.AlertType.INFORMATION, "موفقیت", "خوش آمدید! ورود با موفقیت انجام شد.");
-
                             closeWindow();
                             navigateToMain();
+                            UiTheme.toast("خوش آمدید! ورود با موفقیت انجام شد.");
 
                         } else if (response.statusCode() == 401) {
                             String serverError = extractMessageFromJson(response.body());
@@ -223,42 +219,7 @@ public class LoginController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
-
-        DialogPane dialogPane = alert.getDialogPane();
-        String backgroundColor = "#1e1e2a";
-        String textColor = "#ffffff";
-        String borderColor = (type == Alert.AlertType.ERROR || type == Alert.AlertType.WARNING) ? "#ff5555" : "#50fa7b";
-        String buttonColor = (type == Alert.AlertType.ERROR || type == Alert.AlertType.WARNING) ? "#ff5555" : "#50fa7b";
-
-        dialogPane.setStyle(
-                "-fx-background-color: " + backgroundColor + ";" +
-                "-fx-border-color: " + borderColor + ";" +
-                "-fx-border-width: 2px;" +
-                "-fx-border-radius: 8px;" +
-                "-fx-background-radius: 8px;" +
-                "-fx-padding: 15px;"
-        );
-
-        javafx.scene.Node contentLabel = dialogPane.lookup(".content.label");
-        if (contentLabel != null) {
-            contentLabel.setStyle(
-                    "-fx-text-fill: " + textColor + ";" +
-                    "-fx-font-family: 'Segoe UI', 'Vazirmatn';" +
-                    "-fx-font-size: 14px;"
-            );
-        }
-
-        Button okButton = (Button) dialogPane.lookupButton(ButtonType.OK);
-        if (okButton != null) {
-            okButton.setStyle(
-                    "-fx-background-color: " + buttonColor + ";" +
-                    "-fx-text-fill: white;" +
-                    "-fx-font-weight: bold;" +
-                    "-fx-background-radius: 5px;" +
-                    "-fx-padding: 6px 20px;"
-            );
-        }
-
+        UiTheme.styleAlert(alert);
         alert.showAndWait();
     }
 }
