@@ -1,6 +1,7 @@
 package com.example.frontend;
 
 import javafx.application.Platform;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -207,12 +208,19 @@ public class RegisterAdController {
         }
     }
 
-    /** 🖼️ نمایش thumbnail هر عکس انتخاب‌شده با دکمه حذف */
+    /**
+     * 🖼️ نمایش thumbnail هر عکس انتخاب‌شده با دکمه حذف و دکمه «تعیین به‌عنوان عکس اصلی».
+     * عکسی که در ابتدای لیست (اینتدکس 0) قرار دارد همان عکسی است که بک‌اند به‌عنوان کاور/عکس اصلی آگهی
+     * در لیست و جزئیات استفاده می‌کند (اولین مقدار رشته‌بندی شده با کاما). قبلاً هیچ راهی برای تعیین
+     * عکس اصلی وجود ندارد و فقط ترتیب انتخاب ملاک بود.
+     */
     private void renderImageThumbs() {
         if (imageThumbsPane == null) return;
         imageThumbsPane.getChildren().clear();
         String labelStyle = "-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';";
         String btnStyle = "-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
+        String mainBtnActiveStyle = "-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 4; -fx-font-size: 10px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';";
+        String mainBtnInactiveStyle = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 4; -fx-cursor: hand; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';";
         for (int i = 0; i < selectedImageFiles.size(); i++) {
             final int idx = i;
             File file = selectedImageFiles.get(i);
@@ -227,16 +235,32 @@ public class RegisterAdController {
                 Label lbl = new Label(file.getName().length() > 14 ? file.getName().substring(0,14)+"..." : file.getName());
                 lbl.setStyle(labelStyle);
 
+                boolean isMain = idx == 0;
+                Button btnMain = new Button(isMain ? "⭐ عکس اصلی" : "☆ انتخاب به‌عنوان اصلی");
+                btnMain.setStyle(isMain ? mainBtnActiveStyle : mainBtnInactiveStyle);
+                btnMain.setDisable(isMain);
+                btnMain.setMaxWidth(Double.MAX_VALUE);
+                if (!isMain) {
+                    btnMain.setOnAction(e -> {
+                        File chosen = selectedImageFiles.remove(idx);
+                        selectedImageFiles.add(0, chosen);
+                        renderImageThumbs();
+                    });
+                }
+
                 Button btnDel = new Button("✖ حذف");
                 btnDel.setStyle(btnStyle);
+                btnDel.setMaxWidth(Double.MAX_VALUE);
                 btnDel.setOnAction(e -> {
                     selectedImageFiles.remove(idx < selectedImageFiles.size() ? idx : selectedImageFiles.size()-1);
                     renderImageThumbs();
                 });
 
-                VBox box = new VBox(5, iv, lbl, btnDel);
+                VBox box = new VBox(5, iv, lbl, btnMain, btnDel);
                 box.setAlignment(Pos.CENTER);
-                box.setStyle("-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
+                box.setStyle(isMain
+                        ? "-fx-background-color: #241942; -fx-border-color: #ffc83b; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 7;"
+                        : "-fx-background-color: #241942; -fx-border-color: #3b286b; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8;");
                 imageThumbsPane.getChildren().add(box);
             } catch (Exception ignored) {}
         }
