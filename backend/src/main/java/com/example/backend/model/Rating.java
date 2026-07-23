@@ -33,6 +33,10 @@ public class Rating {
     @Column(nullable = false)
     private int score;
 
+    // 💬 نظر اختیاری خریدار درباره فروشنده (می‌تواند خالی باشد)
+    @Column(length = 1000)
+    private String comment;
+
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public Rating() {}
@@ -59,6 +63,9 @@ public class Rating {
 
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }
+
+    public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

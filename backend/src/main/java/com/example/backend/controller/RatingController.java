@@ -13,15 +13,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * ⭐ امتیازدهی به فروشنده (۱ تا ۵) — مطابق سند پروژه:
- *   POST /api/ratings                 ← ثبت امتیاز { "adId": 1, "score": 5 }
+ *   POST /api/ratings                 ← ثبت امتیاز { "adId": 1, "score": 5, "comment": "..." } (نظر اختیاری)
  *   GET  /api/ratings/ad/{adId}       ← میانگین امتیاز فروشنده یک آگهی
- *   GET  /api/ratings/seller/{username} ← میانگین امتیاز یک فروشنده
+ *   GET  /api/ratings/seller/{username} ← میانگین امتیاز + لیست نظرات یک فروشنده
+ *   GET  /api/ratings/my              ← امتیاز و نظرات دریافتی کاربر جاری (برای صفحه پروفایل)
  * قوانین: امتیاز به خود ممنوع، امتیاز تکراری برای یک آگهی ممنوع
  * 🚫 جدید: امتیازدهی به فروشنده مسدودشده و امتیازدهی توسط کاربر مسدودشده ممنوع است
  */
@@ -120,11 +124,21 @@ public class RatingController {
                     .body(Map.of("message", "شما قبلاً برای این آگهی امتیاز ثبت کرده‌اید.", "status", 400));
         }
 
-        ratingRepository.save(new Rating(rater, seller, ad, score));
+        // 💬 نظر اختیاری — اگر خالی باشد ذخیره نمی‌شود
+        String comment = body.get("comment") == null ? null : body.get("comment").toString().trim();
+        if (comment != null && comment.isEmpty()) comment = null;
+        if (comment != null && comment.length() > 1000) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "متن نظر حداکثر می‌تواند ۱۰۰۰ کاراکتر باشد.", "status", 400));
+        }
+
+        Rating rating = new Rating(rater, seller, ad, score);
+        rating.setComment(comment);
+        ratingRepository.save(rating);
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "message", "امتیاز شما با موفقیت ثبت شد.",
+                "message", comment != null ? "امتیاز و نظر شما با موفقیت ثبت شد." : "امتیاز شما با موفقیت ثبت شد.",
                 "average", averageForSeller(seller),
                 "count", ratingRepository.findBySellerUsername(seller).size()
         ));
@@ -151,13 +165,47 @@ public class RatingController {
 
     @GetMapping("/seller/{username}")
     public ResponseEntity getRatingForSeller(@PathVariable String username) {
-        List ratings = ratingRepository.findBySellerUsername(username);
+        return buildSellerRatingsResponse(username);
+    }
+
+    /**
+     * 👤 امتیاز و نظرات دریافتی کاربر جاری به‌عنوان فروشنده — برای نمایش در صفحه پروفایل
+     */
+    @GetMapping("/my")
+    public ResponseEntity getMyRatings(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
+        }
+        return buildSellerRatingsResponse(principal.getName());
+    }
+
+    /**
+     * 📦 پاسخ مشترک: میانگین، تعداد و لیست نظرات یک فروشنده (جدیدترین اول)
+     */
+    private ResponseEntity buildSellerRatingsResponse(String username) {
+        List<Rating> ratings = new ArrayList<>(ratingRepository.findBySellerUsername(username));
+        ratings.sort(Comparator.comparing(Rating::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+
+        List<Map<String, Object>> reviews = new ArrayList<>();
+        for (Rating r : ratings) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("rater", r.getRaterUsername());
+            item.put("score", r.getScore());
+            item.put("comment", r.getComment() == null ? "" : r.getComment());
+            item.put("adTitle", (r.getAdvertisement() != null && r.getAdvertisement().getTitle() != null)
+                    ? r.getAdvertisement().getTitle() : "");
+            item.put("createdAt", r.getCreatedAt() == null ? "" : r.getCreatedAt().toString());
+            reviews.add(item);
+        }
 
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "sellerUsername", username,
                 "average", averageForSeller(username),
-                "count", ratings.size()
+                "count", ratings.size(),
+                "reviews", reviews
         ));
     }
 

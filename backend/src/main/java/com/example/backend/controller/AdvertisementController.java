@@ -36,7 +36,7 @@ public class AdvertisementController {
 
     /**
      * 🔍 دریافت آگهی‌های فعال دیگران (صفحه اصلی) با جستجو، فیلتر ترکیبی و مرتب‌سازی
-     * پارامترهای اختیاری: search, category, city, minPrice, maxPrice, sort(newest|cheapest|expensive)
+     * پارامترهای اختیاری: search, category, city, minPrice, maxPrice, sort(newest|oldest|cheapest|expensive)
      */
     @GetMapping("/advertisements")
     public ResponseEntity<?> getAllAds(

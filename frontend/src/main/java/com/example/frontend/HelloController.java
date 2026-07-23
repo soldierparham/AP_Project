@@ -112,11 +112,11 @@ public class HelloController {
 
         hoverMenu.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-width: 1; -fx-border-radius: 10; -fx-padding: 6; -fx-selection-bar: transparent; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
 
-        CustomMenuItem profileItem = buildThemedMenuItem("\ud83d\udc64 آگهی‌های من", this::onLoadMyAdsClick);
+        CustomMenuItem profileItem = buildThemedMenuItem("\ud83d\udccb آگهی‌های من", this::onLoadMyAdsClick);
         CustomMenuItem favoritesItem = buildThemedMenuItem("\u2764 علاقه‌مندی‌های من", this::showFavoritesScreen);
         CustomMenuItem logoutItem = buildThemedMenuItem("\ud83d\udeaa خروج از حساب", this::onLogoutClick);
 
-        CustomMenuItem editProfileItem = buildThemedMenuItem("⚙️ ویرایش مشخصات", this::openProfileEditPage);
+        CustomMenuItem editProfileItem = buildThemedMenuItem("👤 پروفایل", this::openProfileEditPage);
 
         hoverMenu.getItems().addAll(profileItem, favoritesItem, editProfileItem);
 
@@ -163,7 +163,7 @@ public class HelloController {
         }
         loadCitiesFromServer();
         if (sortFilterCombo != null) {
-            sortFilterCombo.getItems().addAll("جدیدترین", "ارزان‌ترین", "گران‌ترین");
+            sortFilterCombo.getItems().addAll("جدیدترین", "قدیمی‌ترین", "ارزان‌ترین", "گران‌ترین");
         }
 
         // 🎨 هماهنگ‌سازی رنگ کمبوباکس‌های فیلتر/مرتب‌سازی با تم برنامه
@@ -463,6 +463,8 @@ public class HelloController {
             filterSort = "cheapest";
         } else if ("گران‌ترین".equals(sortLabel)) {
             filterSort = "expensive";
+        } else if ("قدیمی‌ترین".equals(sortLabel)) {
+            filterSort = "oldest";
         } else {
             filterSort = "newest";
         }
@@ -1109,7 +1111,7 @@ public class HelloController {
         });
     }
 
-    // ---------------------------------------------------------- ویرایش مشخصات کاربر
+    // ---------------------------------------------------------- 👤 پروفایل کاربر (مشخصات + امتیاز و نظرات دریافتی)
 
     private void openProfileEditPage() {
         setActiveTopBarSection("myDivar");
@@ -1120,7 +1122,7 @@ public class HelloController {
         editBox.setAlignment(Pos.TOP_RIGHT);
         editBox.setStyle("-fx-background-color: #160f29;");
 
-        Label lblHeader = new Label("\u2699\ufe0f ویرایش مشخصات کاربری");
+        Label lblHeader = new Label("\ud83d\udc64 پروفایل کاربری");
         lblHeader.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
 
         String inputStyle = "-fx-background-color: #241942; -fx-text-fill: white; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8; -fx-font-family: 'Vazirmatn';";
@@ -1181,6 +1183,19 @@ public class HelloController {
         HBox buttonBar = new HBox(10, btnSave, btnBack);
         buttonBar.setAlignment(Pos.CENTER_RIGHT);
 
+        // ⭐ بخش امتیاز و نظرات دریافتی کاربر (به‌عنوان فروشنده)
+        Separator sepRatings = new Separator();
+
+        Label lblRatingHeader = new Label("\u2b50 امتیاز و نظرات دریافتی شما");
+        lblRatingHeader.setStyle("-fx-text-fill: white; -fx-font-size: 17px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        Label lblAvgRating = new Label("در حال دریافت امتیاز...");
+        lblAvgRating.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 14px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        VBox reviewsBox = new VBox(10);
+        reviewsBox.setAlignment(Pos.TOP_RIGHT);
+        loadMyRatingsSection(lblAvgRating, reviewsBox);
+
         editBox.getChildren().addAll(lblHeader,
                 lblFieldName, txtName,
                 lblFieldUsername, txtUsername,
@@ -1189,7 +1204,8 @@ public class HelloController {
                 lblPassHint,
                 lblFieldCurrentPass, txtCurrentPass,
                 lblFieldNewPass, txtNewPass,
-                buttonBar);
+                buttonBar,
+                sepRatings, lblRatingHeader, lblAvgRating, reviewsBox);
 
         ScrollPane scrollPane = new ScrollPane(editBox);
         scrollPane.setFitToWidth(true);
@@ -1218,6 +1234,78 @@ public class HelloController {
                         showErrorAlert(extractJsonField(response.body(), "message"));
                     }
                 }));
+    }
+
+    /**
+     * ⭐ دریافت میانگین امتیاز و لیست نظرات دریافتی کاربر جاری برای نمایش در صفحه پروفایل
+     */
+    private void loadMyRatingsSection(Label lblAvg, VBox reviewsBox) {
+        client.sendAsync(authorizedGet(BASE_URL + "/api/ratings/my"), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    checkAndRefreshToken(response);
+                    if (response.statusCode() != 200) {
+                        lblAvg.setText("\u2b50 امتیاز شما: نامشخص");
+                        return;
+                    }
+                    String body = response.body();
+                    String average = extractJsonField(body, "average");
+                    String count = extractJsonField(body, "count");
+
+                    if ("0".equals(count) || "مشخص نشده".equals(count)) {
+                        lblAvg.setText("هنوز امتیازی برای شما ثبت نشده است.");
+                        return;
+                    }
+                    lblAvg.setText("\u2b50 میانگین امتیاز شما: " + average + " از 5   |   تعداد رای: " + count);
+
+                    reviewsBox.getChildren().clear();
+                    int revIndex = body.indexOf("\"reviews\"");
+                    if (revIndex < 0) return;
+                    String reviewsPart = body.substring(revIndex);
+
+                    Pattern objectPattern = Pattern.compile("\\{([^}]+)\\}");
+                    Matcher matcher = objectPattern.matcher(reviewsPart);
+                    while (matcher.find()) {
+                        String rJson = matcher.group(1);
+                        if (!rJson.contains("\"score\"")) continue;
+                        String score = extractJsonField(rJson, "score");
+                        String comment = extractJsonField(rJson, "comment");
+                        String adTitle = extractJsonField(rJson, "adTitle");
+                        String createdAt = extractJsonField(rJson, "createdAt");
+                        reviewsBox.getChildren().add(buildReviewCard(score, comment, adTitle, createdAt));
+                    }
+                }));
+    }
+
+    /**
+     * 💬 کارت نمایش یک نظر/امتیاز دریافتی در صفحه پروفایل
+     */
+    private VBox buildReviewCard(String score, String comment, String adTitle, String createdAt) {
+        int sc = 0;
+        try { sc = (int) Double.parseDouble(score); } catch (Exception ignored) { }
+        StringBuilder stars = new StringBuilder();
+        for (int i = 0; i < 5; i++) stars.append(i < sc ? "\u2605" : "\u2606");
+
+        Label lblTop = new Label(stars + "   امتیاز: " + sc + " از 5");
+        lblTop.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
+        lblTop.setStyle("-fx-text-fill: #ffc83b; -fx-font-size: 13px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+
+        String when = (createdAt == null || "مشخص نشده".equals(createdAt) || createdAt.length() < 16)
+                ? "" : createdAt.replace("T", " ").substring(0, 16);
+        Label lblAdInfo = new Label("آگهی: " + ("مشخص نشده".equals(adTitle) || adTitle.isBlank() ? "-" : adTitle)
+                + (when.isEmpty() ? "" : "   |   " + when));
+        lblAdInfo.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 11px; -fx-font-family: 'Vazirmatn';");
+
+        VBox card = new VBox(4, lblTop, lblAdInfo);
+        if (comment != null && !comment.isBlank() && !"مشخص نشده".equals(comment)) {
+            Label lblComment = new Label("\ud83d\udcac " + comment);
+            lblComment.setWrapText(true);
+            lblComment.setStyle("-fx-text-fill: white; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+            card.getChildren().add(lblComment);
+        }
+        card.setPadding(new Insets(10));
+        card.setAlignment(Pos.TOP_RIGHT);
+        card.setStyle("-fx-background-color: #241942; -fx-background-radius: 10; -fx-border-color: #3b286b; -fx-border-radius: 10;");
+        return card;
     }
 
     private String cleanProfileField(String value) {
@@ -1506,7 +1594,7 @@ public class HelloController {
         mainBorderPane.setCenter(scrollPane);
     }
 
-    /** \ud83d\uddbc\ufe0f پیش‌نمایش کوچک عکس؛ عکس اصلی کادر طلایی دارد و بقیه دکمه \u2b50 دارند. */
+    /** \ud83d\uddbc\ufe0f پیش‌نمایش کوچک عکس؛ عکس اصلی کادر طلایی دارد و بقیه دکم�� \u2b50 دارند. */
     private VBox buildImageThumb(Image image, String tag, boolean isMain, Runnable onRemove, Runnable onSetMain) {
         ImageView iv = new ImageView(image);
         iv.setFitWidth(140); iv.setFitHeight(100); iv.setPreserveRatio(false);
@@ -1547,7 +1635,7 @@ public class HelloController {
                 .thenAccept(response -> Platform.runLater(() -> {
                     checkAndRefreshToken(response);
                     if (response.statusCode() == 200) {
-                        showSuccessAlert("عکس اصلی آگهی بروز شد؛ آگهی همچنان فعال می‌ماند و نیازی به تایید مجدد مدیر ندارد.");
+                        showSuccessAlert("عکس اصلی آگهی بروز شد؛ آگهی همچنان فعال م��‌ماند و نیازی به تایید مجدد مدیر ندارد.");
                         onLoadMyAdsClick();
                     } else if (response.statusCode() == 401) {
                         handleUnauthorized(response.statusCode());
@@ -1960,10 +2048,36 @@ public class HelloController {
         }
         refreshStars.run();
 
+        // 💬 نظر اختیاری درباره فروشنده
+        Label lblCommentTitle = new Label("نظر شما درباره فروشنده (اختیاری):");
+        lblCommentTitle.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+
+        TextArea txtComment = new TextArea();
+        txtComment.setPromptText("تجربه خود از معامله با این فروشنده را بنویسید...");
+        txtComment.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
+        txtComment.setPrefRowCount(3);
+        txtComment.setWrapText(true);
+        txtComment.setStyle("-fx-control-inner-background: #160f29; -fx-background-color: #160f29; -fx-text-fill: white;"
+                + " -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8;"
+                + " -fx-font-family: 'Vazirmatn'; -fx-prompt-text-fill: #8b7ca6;");
+
+        VBox commentBox = new VBox(6, lblCommentTitle, txtComment);
+        commentBox.setAlignment(Pos.TOP_RIGHT);
+
         Button btnSubmit = new Button("ثبت امتیاز");
         btnSubmit.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
         btnSubmit.setOnAction(e -> {
-            String body = "{\"adId\":" + adId + ",\"score\":" + selectedScore[0] + "}";
+            // 💬 نظر اختیاری — فقط در صورت نوشتن متن ارسال می‌شود
+            String commentText = txtComment.getText() == null ? "" : txtComment.getText().trim();
+            StringBuilder bodySb = new StringBuilder();
+            bodySb.append("{\"adId\":").append(adId).append(",\"score\":").append(selectedScore[0]);
+            if (!commentText.isEmpty()) {
+                bodySb.append(",\"comment\":\"")
+                        .append(escapeJsonValue(commentText).replace("\r", "").replace("\n", "\\n"))
+                        .append("\"");
+            }
+            bodySb.append("}");
+            String body = bodySb.toString();
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(BASE_URL + "/api/ratings"))
@@ -1976,7 +2090,7 @@ public class HelloController {
                     .thenAccept(response -> Platform.runLater(() -> {
                         checkAndRefreshToken(response);
                         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                            showSuccessAlert("امتیاز شما با موفقیت ثبت شد.");
+                            showSuccessAlert(extractJsonField(response.body(), "message"));
                             openAdDetailsPage(adId, title, description, rawPrice, owner, imageUrl);
                         } else if (response.statusCode() == 401) {
                             handleUnauthorized(response.statusCode());
@@ -1986,7 +2100,7 @@ public class HelloController {
                     }));
         });
 
-        VBox card = new VBox(18, lblHeader, lblSeller, lblAd, starsRow, lblSelected, btnSubmit);
+        VBox card = new VBox(18, lblHeader, lblSeller, lblAd, starsRow, lblSelected, commentBox, btnSubmit);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(30));
         card.setMaxWidth(460);

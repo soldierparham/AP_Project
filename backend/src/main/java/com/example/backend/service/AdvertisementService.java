@@ -66,7 +66,7 @@ public class AdvertisementService {
      * - فقط آگهی‌هایی با وضعیت ACTIVE برای عموم قابل مشاهده هستند
      * - search: جستجوی کلیدواژه در عنوان و توضیحات
      * - category / city / minPrice / maxPrice: فیلترهای ترکیبی
-     * - sort: newest (جدیدترین) / cheapest (ارزان‌ترین) / expensive (گران‌ترین)
+     * - sort: newest (جدیدترین) / oldest (قدیمی‌ترین) / cheapest (ارزان‌ترین) / expensive (گران‌ترین)
      */
     public List<Advertisement> getActiveAdsExceptOwner(String username,
                                                        String search,
@@ -103,6 +103,10 @@ public class AdvertisementService {
         Comparator<Advertisement> comparator;
         String sortKey = (sort == null || sort.isBlank()) ? "newest" : sort;
         switch (sortKey) {
+            case "oldest": // قدیمی‌ترین
+                comparator = Comparator.comparing(Advertisement::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder()));
+                break;
             case "cheapest":
                 comparator = Comparator.comparing(Advertisement::getPrice,
                         Comparator.nullsLast(Comparator.naturalOrder()));
@@ -163,6 +167,10 @@ public class AdvertisementService {
         Comparator<Advertisement> comparator;
         String sortKey = (sort == null || sort.isBlank()) ? "newest" : sort;
         switch (sortKey) {
+            case "oldest": // قدیمی‌ترین
+                comparator = Comparator.comparing(Advertisement::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder()));
+                break;
             case "cheapest":
                 comparator = Comparator.comparing(Advertisement::getPrice,
                         Comparator.nullsLast(Comparator.naturalOrder()));
