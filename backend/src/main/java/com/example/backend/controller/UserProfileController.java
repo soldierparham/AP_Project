@@ -1,7 +1,13 @@
 package com.example.backend.controller;
 
 import com.example.backend.model.User;
+import com.example.backend.repository.AdvertisementRepository;
+import com.example.backend.repository.ConversationRepository;
+import com.example.backend.repository.FavoriteRepository;
+import com.example.backend.repository.MessageRepository;
+import com.example.backend.repository.RatingRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,12 +16,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 /**
  * مدیریت مشخصات کاربر جاری (نمایش و ویرایش پروفایل از بخش «بازارچه من»)
- * - نام کاربری غیرقابل تغییر است (آگهی‌ها، چت‌ها و توکن به آن گره خورده‌اند)
+ * - نام کاربری قابل تغییر است و همه ارجاعات و توکن خودکار بروزرسانی می‌شوند (آگهی‌ها، چت‌ها و توکن به آن گره خورده‌اند)
  * - تغییر رمز فقط با تأیید رمز فعلی انجام می‌شود
  */
 @RestController
@@ -27,6 +34,24 @@ public class UserProfileController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private AdvertisementRepository advertisementRepository;
+
+    @Autowired
+    private RatingRepository ratingRepository;
+
+    @Autowired
+    private FavoriteRepository favoriteRepository;
+
+    @Autowired
+    private ConversationRepository conversationRepository;
+
+    @Autowired
+    private MessageRepository messageRepository;
 
     private Optional<User> findCurrentUser(Principal principal) {
         if (principal == null) return Optional.empty();
@@ -75,15 +100,61 @@ public class UserProfileController {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "نام نمی‌تواند خالی باشد.", "status", 400));
         }
-        if (phone.isBlank()) {
+        // \ud83d\udcf5 شماره تماس شناسه یکتای حساب است و قابل تغییر نیست
+        if (!phone.isBlank() && !phone.equals(user.getPhoneNumber())) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "شماره تماس نمی‌تواند خالی باشد.", "status", 400));
+                    .body(Map.of("message", "شماره تماس شناسه حساب شماست و قابل تغییر نیست.", "status", 400));
         }
 
-        // شماره تماس جدید نباید متعلق به کاربر دیگری باشد
-        if (!phone.equals(user.getPhoneNumber()) && userRepository.existsByPhoneNumber(phone)) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", "این شماره تماس قبلاً توسط کاربر دیگری ثبت شده است.", "status", 400));
+        // تغییر نام کاربری (شماره تماس شناسه اصلی حساب است، پس نام کاربری آزاد است)
+        String newUsername = body.get("username") == null ? "" : body.get("username").trim();
+        String rotatedToken = null;
+        if (!newUsername.isBlank() && !newUsername.equals(user.getUsername())) {
+            if (!newUsername.matches("[A-Za-z0-9_.\\-]{3,30}")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "نام کاربری باید بین ۳ تا ۳۰ کاراکتر و فقط شامل حروف انگلیسی، عدد، نقطه، خط تیره و زیرخط باشد.", "status", 400));
+            }
+            if (userRepository.existsByUsername(newUsername)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "این نام کاربری قبلاً توسط کاربر دیگری انتخاب شده است.", "status", 400));
+            }
+
+            String oldUsername = user.getUsername();
+
+            // بروزرسانی همه ارجاعات نام کاربری در سراسر سیستم
+            advertisementRepository.findByOwnerUsername(oldUsername).forEach(ad -> {
+                ad.setOwnerUsername(newUsername);
+                advertisementRepository.save(ad);
+            });
+            ratingRepository.findAll().forEach(r -> {
+                boolean changed = false;
+                if (oldUsername.equals(r.getRaterUsername())) { r.setRaterUsername(newUsername); changed = true; }
+                if (oldUsername.equals(r.getSellerUsername())) { r.setSellerUsername(newUsername); changed = true; }
+                if (changed) {
+                    ratingRepository.save(r);
+                }
+            });
+            favoriteRepository.findByUsernameOrderByCreatedAtDesc(oldUsername).forEach(f -> {
+                f.setUsername(newUsername);
+                favoriteRepository.save(f);
+            });
+            conversationRepository.findByBuyerUsernameOrSellerUsername(oldUsername, oldUsername).forEach(c -> {
+                if (oldUsername.equals(c.getBuyerUsername())) { c.setBuyerUsername(newUsername); }
+                if (oldUsername.equals(c.getSellerUsername())) { c.setSellerUsername(newUsername); }
+                conversationRepository.save(c);
+            });
+            messageRepository.findAll().forEach(msg -> {
+                if (oldUsername.equals(msg.getSenderUsername())) {
+                    msg.setSenderUsername(newUsername);
+                    messageRepository.save(msg);
+                }
+            });
+
+            user.setUsername(newUsername);
+
+            // توکن قبلی به نام کاربری قدیمی گره خورده؛ توکن جدید صادر می‌شود
+            rotatedToken = jwtUtil.generateToken(newUsername, user.getRole());
+            user.setJwtToken(rotatedToken);
         }
 
         // تغییر رمز عبور (اختیاری)
@@ -108,14 +179,19 @@ public class UserProfileController {
         }
 
         user.setName(name);
-        user.setPhoneNumber(phone);
+        // شماره تماس عمداً بروز نمی‌شود (شناسه حساب)
         user.setEmail(email);
         userRepository.saveAndFlush(user);
 
-        return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "مشخصات شما با موفقیت به‌روزرسانی شد."
-        ));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "success");
+        result.put("message", "مشخصات شما با موفقیت به‌روزرسانی شد.");
+        if (rotatedToken != null) {
+            // فرانت‌اند توکن و نام کاربری جدید را جایگزین می‌کند
+            result.put("token", rotatedToken);
+            result.put("username", user.getUsername());
+        }
+        return ResponseEntity.ok(result);
     }
 
     private boolean isBcryptHash(String stored) {

@@ -69,6 +69,8 @@ public class HelloController {
     private String cachedAdsJson = "";
     private boolean cachedIsMyAdsView = false;
     private boolean cachedIsFavoritesView = false;
+    /** ⭐ شناسه آگهی‌های موجود در علاقه‌مندی‌های کاربر */
+    private final java.util.Set<Long> favoriteAdIds = new java.util.HashSet<>();
 
     // 🔍 کنترل‌های فیلتر و مرتب‌سازی در ردیف بالا
     @FXML private ComboBox<String> cityFilterCombo;
@@ -608,7 +610,7 @@ public class HelloController {
             card.setOnMouseExited(e -> card.setStyle(cardNormal));
             card.setOnMouseClicked(e -> {
                 try {
-                    openChatPane(Long.parseLong(convIdStr), otherUser, adTitle);
+                    openChatPane(Long.parseLong(convIdStr), 0L, otherUser, adTitle);
                 } catch (NumberFormatException ignored) {
                 }
             });
@@ -652,7 +654,7 @@ public class HelloController {
                         cachedAdsJson = response.body();
                         cachedIsMyAdsView = false;
                         cachedIsFavoritesView = false;
-                        renderAdvertisements(response.body(), false, searchQuery);
+                        refreshFavoriteIds(() -> renderAdvertisements(cachedAdsJson, false, searchQuery));
                     } else if (response.statusCode() == 401) {
                         handleUnauthorized(response.statusCode());
                     } else {
@@ -704,6 +706,9 @@ public class HelloController {
                         cachedAdsJson = response.body();
                         cachedIsMyAdsView = false;
                         cachedIsFavoritesView = true;
+                        favoriteAdIds.clear();
+                        java.util.regex.Matcher fm = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*(\\d+)").matcher(response.body());
+                        while (fm.find()) favoriteAdIds.add(Long.parseLong(fm.group(1)));
                         renderAdvertisements(response.body(), false, "");
                     } else if (response.statusCode() == 401) {
                         handleUnauthorized(response.statusCode());
@@ -713,8 +718,25 @@ public class HelloController {
                 }));
     }
 
-    private void toggleFavorite(long adId) {
-        boolean removing = cachedIsFavoritesView;
+    /** دریافت شناسه آگهی‌های علاقه‌مندی برای همگام‌سازی دکمه‌ها */
+    private void refreshFavoriteIds(Runnable onDone) {
+        client.sendAsync(authorizedGet(BASE_URL + "/api/favorites"), HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.statusCode() == 200) {
+                        favoriteAdIds.clear();
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"id\"\\s*:\\s*(\\d+)").matcher(response.body());
+                        while (m.find()) favoriteAdIds.add(Long.parseLong(m.group(1)));
+                    }
+                    if (onDone != null) onDone.run();
+                }))
+                .exceptionally(ex -> {
+                    if (onDone != null) Platform.runLater(onDone);
+                    return null;
+                });
+    }
+
+    private void toggleFavorite(long adId, Button sourceBtn) {
+        boolean removing = cachedIsFavoritesView || favoriteAdIds.contains(adId);
 
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/favorites/" + adId))
@@ -729,8 +751,16 @@ public class HelloController {
                     checkAndRefreshToken(response);
                     if (response.statusCode() >= 200 && response.statusCode() < 300) {
                         if (removing) {
-                            showFavoritesScreen();
+                            favoriteAdIds.remove(adId);
+                            if (cachedIsFavoritesView) {
+                                showFavoritesScreen();
+                            } else {
+                                if (sourceBtn != null) sourceBtn.setText("\u2b50 افزودن به علاقه‌مندی‌ها");
+                                showSuccessAlert("آگهی از علاقه‌مندی‌های شما حذف شد.");
+                            }
                         } else {
+                            favoriteAdIds.add(adId);
+                            if (sourceBtn != null) sourceBtn.setText("\ud83d\udc94 حذف از علاقه‌مندی‌ها");
                             showSuccessAlert("آگهی به علاقه‌مندی‌های شما اضافه شد.");
                         }
                     } else if (response.statusCode() == 401) {
@@ -1010,12 +1040,13 @@ public class HelloController {
             HBox actionsBox = new HBox(8);
             actionsBox.setAlignment(Pos.CENTER_LEFT);
 
-            Button btnFav = new Button(cachedIsFavoritesView
+            boolean isFav = cachedIsFavoritesView || favoriteAdIds.contains(finalAdId);
+            Button btnFav = new Button(isFav
                     ? "\ud83d\udc94 حذف از علاقه‌مندی‌ها"
                     : "\u2b50 افزودن به علاقه‌مندی‌ها");
             btnFav.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
             btnFav.setOnMouseClicked(Event::consume);
-            btnFav.setOnAction(e -> toggleFavorite(finalAdId));
+            btnFav.setOnAction(e -> toggleFavorite(finalAdId, btnFav));
 
             actionsBox.getChildren().add(btnFav);
             textContainer.getChildren().add(actionsBox);
@@ -1072,7 +1103,8 @@ public class HelloController {
         setCategorySidebarVisible(false);
 
         VBox editBox = new VBox(12);
-        editBox.setPadding(new Insets(25));
+        editBox.setPadding(new Insets(25, 150, 25, 150));
+        editBox.setAlignment(Pos.TOP_RIGHT);
         editBox.setStyle("-fx-background-color: #160f29;");
 
         Label lblHeader = new Label("\u2699\ufe0f ویرایش مشخصات کاربری");
@@ -1084,18 +1116,19 @@ public class HelloController {
         Label lblFieldName = new Label("نام و نام خانوادگی:");
         lblFieldName.setStyle(labelStyle);
         TextField txtName = new TextField();
+        txtName.setNodeOrientation(javafx.geometry.NodeOrientation.RIGHT_TO_LEFT);
         txtName.setStyle(inputStyle);
 
-        Label lblFieldUsername = new Label("نام کاربری (غیرقابل تغییر):");
+        Label lblFieldUsername = new Label("نام کاربری:");
         lblFieldUsername.setStyle(labelStyle);
         TextField txtUsername = new TextField();
-        txtUsername.setDisable(true);
-        txtUsername.setStyle(inputStyle + " -fx-opacity: 0.65;");
+        txtUsername.setStyle(inputStyle);
 
-        Label lblFieldPhone = new Label("شماره تماس:");
+        Label lblFieldPhone = new Label("شماره تماس (شناسه حساب — غیرقابل تغییر):");
         lblFieldPhone.setStyle(labelStyle);
         TextField txtPhone = new TextField();
-        txtPhone.setStyle(inputStyle);
+        txtPhone.setDisable(true);
+        txtPhone.setStyle(inputStyle + " -fx-opacity: 0.65;");
 
         Label lblFieldEmail = new Label("ایمیل:");
         lblFieldEmail.setStyle(labelStyle);
@@ -1122,6 +1155,7 @@ public class HelloController {
         btnSave.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #241942; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
         btnSave.setOnAction(e -> saveProfileChanges(
                 txtName.getText().trim(),
+                txtUsername.getText().trim(),
                 txtPhone.getText().trim(),
                 txtEmail.getText().trim(),
                 txtCurrentPass.getText(),
@@ -1177,9 +1211,13 @@ public class HelloController {
         return (value == null || "مشخص نشده".equals(value)) ? "" : value;
     }
 
-    private void saveProfileChanges(String name, String phone, String email, String currentPass, String newPass) {
+    private void saveProfileChanges(String name, String username, String phone, String email, String currentPass, String newPass) {
         if (name.isBlank()) {
             showErrorAlert("نام نمی‌تواند خالی باشد.");
+            return;
+        }
+        if (username.isBlank()) {
+            showErrorAlert("نام کاربری نمی‌تواند خالی باشد.");
             return;
         }
         if (phone.isBlank()) {
@@ -1193,6 +1231,7 @@ public class HelloController {
 
         StringBuilder body = new StringBuilder("{");
         body.append("\"name\":\"").append(escapeJsonValue(name)).append("\"");
+        body.append(",\"username\":\"").append(escapeJsonValue(username)).append("\"");
         body.append(",\"phoneNumber\":\"").append(escapeJsonValue(phone)).append("\"");
         body.append(",\"email\":\"").append(escapeJsonValue(email)).append("\"");
         if (!newPass.isBlank()) {
@@ -1212,6 +1251,15 @@ public class HelloController {
                 .thenAccept(response -> Platform.runLater(() -> {
                     checkAndRefreshToken(response);
                     if (response.statusCode() == 200) {
+                        // در صورت تغییر نام کاربری، سرور توکن و نام کاربری جدید می‌فرستد
+                        String newToken = extractJsonField(response.body(), "token");
+                        String newUsername = extractJsonField(response.body(), "username");
+                        if (newToken != null && !newToken.isBlank() && !"مشخص نشده".equals(newToken)) {
+                            MainApplication.jwtToken = newToken;
+                        }
+                        if (newUsername != null && !newUsername.isBlank() && !"مشخص نشده".equals(newUsername)) {
+                            MainApplication.currentUsername = newUsername;
+                        }
                         showSuccessAlert("مشخصات شما با موفقیت به‌روزرسانی شد.");
                         showHomeScreen();
                     } else if (response.statusCode() == 401) {
@@ -1803,7 +1851,14 @@ public class HelloController {
             btnRate.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
             btnRate.setOnAction(e -> openRatingPage(adId, title, description, rawPrice, owner, imageUrl));
 
-            actionRow.getChildren().addAll(btnStartChat, btnRate);
+            boolean isFavDetail = favoriteAdIds.contains(adId);
+            Button btnFavDetail = new Button(isFavDetail
+                    ? "\ud83d\udc94 حذف از علاقه‌مندی‌ها"
+                    : "\u2b50 افزودن به علاقه‌مندی‌ها");
+            btnFavDetail.setStyle("-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
+            btnFavDetail.setOnAction(e -> toggleFavorite(adId, btnFavDetail));
+
+            actionRow.getChildren().addAll(btnStartChat, btnRate, btnFavDetail);
         }
 
         detailsBox.getChildren().addAll(btnBack, gallery, lblTitle, lblPrice, lblOwner,
@@ -1949,11 +2004,14 @@ public class HelloController {
                     checkAndRefreshToken(response);
                     if (response.statusCode() == 200) {
                         String convIdStr = extractJsonField(response.body(), "conversationId");
+                        long convId;
                         try {
-                            openChatPane(Long.parseLong(convIdStr), sellerUsername, adTitle);
+                            convId = Long.parseLong(convIdStr);
                         } catch (NumberFormatException e) {
-                            showErrorAlert("خطا در شروع گفتگو.");
+                            convId = -1L;
                         }
+                        // اگر گفتگویی وجود نداشته باشد، پنجره چت در حالت «در انتظار اولین پیام» باز می‌شود
+                        openChatPane(convId, adId, sellerUsername, adTitle);
                     } else if (response.statusCode() == 401) {
                         handleUnauthorized(response.statusCode());
                     } else {
@@ -1962,7 +2020,8 @@ public class HelloController {
                 }));
     }
 
-    private void openChatPane(long conversationId, String otherUser, String adTitle) {
+    private void openChatPane(long conversationId, long adId, String otherUser, String adTitle) {
+        final long[] convIdHolder = { conversationId };
         setCategorySidebarVisible(false);
         setActiveTopBarSection("chat");
         VBox messagesBox = new VBox(8);
@@ -1986,7 +2045,11 @@ public class HelloController {
 
         Button btnRefresh = new Button("\ud83d\udd04");
         btnRefresh.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
-        btnRefresh.setOnAction(e -> loadChatMessages(conversationId, messagesBox));
+        btnRefresh.setOnAction(e -> {
+            if (convIdHolder[0] > 0) {
+                loadChatMessages(convIdHolder[0], messagesBox);
+            }
+        });
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -2007,9 +2070,15 @@ public class HelloController {
             String text = input.getText() == null ? "" : input.getText().trim();
             if (text.isEmpty()) return;
 
-            String body = "{\"content\":\"" + escapeJson(text) + "\"}";
+            boolean firstMessage = convIdHolder[0] <= 0;
+            String body = firstMessage
+                    ? "{\"adId\":" + adId + ",\"content\":\"" + escapeJson(text) + "\"}"
+                    : "{\"content\":\"" + escapeJson(text) + "\"}";
+            String url = firstMessage
+                    ? BASE_URL + "/api/chat/send-first"
+                    : BASE_URL + "/api/chat/conversations/" + convIdHolder[0] + "/messages";
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URL + "/api/chat/conversations/" + conversationId + "/messages"))
+                    .uri(URI.create(url))
                     .header("Authorization", "Bearer " + MainApplication.jwtToken)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
@@ -2019,8 +2088,17 @@ public class HelloController {
                     .thenAccept(response -> Platform.runLater(() -> {
                         checkAndRefreshToken(response);
                         if (response.statusCode() == 200) {
+                            if (firstMessage) {
+                                String newConvIdStr = extractJsonField(response.body(), "conversationId");
+                                try {
+                                    convIdHolder[0] = Long.parseLong(newConvIdStr);
+                                } catch (NumberFormatException ignored) {
+                                }
+                            }
                             input.clear();
-                            loadChatMessages(conversationId, messagesBox);
+                            if (convIdHolder[0] > 0) {
+                                loadChatMessages(convIdHolder[0], messagesBox);
+                            }
                         } else if (response.statusCode() == 401) {
                             handleUnauthorized(response.statusCode());
                         } else {
@@ -2043,7 +2121,16 @@ public class HelloController {
         chatRoot.setStyle("-fx-background-color: #160f29;");
 
         mainBorderPane.setCenter(chatRoot);
-        loadChatMessages(conversationId, messagesBox);
+        if (convIdHolder[0] > 0) {
+            loadChatMessages(convIdHolder[0], messagesBox);
+        } else {
+            Label lblEmpty = new Label("هنوز گفتگویی شکل نگرفته است. با ارسال اولین پیام، گفتگو ساخته می‌شود.");
+            lblEmpty.setWrapText(true);
+            lblEmpty.setStyle("-fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn';");
+            HBox emptyRow = new HBox(lblEmpty);
+            emptyRow.setAlignment(Pos.CENTER);
+            messagesBox.getChildren().add(emptyRow);
+        }
     }
 
     private void loadChatMessages(long conversationId, VBox messagesBox) {

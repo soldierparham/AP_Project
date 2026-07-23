@@ -102,17 +102,90 @@ public class ChatRestController {
                     .body(Map.of("message", "این کاربر توسط مدیر مسدود شده است و امکان گفتگو با او وجود ندارد.", "status", 403));
         }
 
+        // گفتگو فقط با ارسال اولین پیام ساخته می‌شود؛ اینجا فقط گفتگوی موجود برگردانده می‌شود
+        long existingId = conversationRepository
+                .findByAdvertisementIdAndBuyerUsernameAndSellerUsername(adId, buyerUsername, sellerUsername)
+                .map(Conversation::getId)
+                .orElse(-1L);
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "conversationId", existingId,
+                "adId", adId,
+                "buyerUsername", buyerUsername,
+                "sellerUsername", sellerUsername
+        ));
+    }
+
+    /**
+     * ارسال اولین پیام برای یک آگهی — گفتگو همین‌جا ساخته می‌شود
+     * (تا وقتی پیامی ارسال نشده هیچ گفتگویی در دیتابیس وجود ندارد)
+     */
+    @PostMapping("/send-first")
+    public ResponseEntity sendFirstMessage(@RequestBody Map<String, Object> body, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "ابتدا وارد حساب کاربری خود شوید.", "status", 401));
+        }
+
+        String buyerUsername = principal.getName();
+
+        if (isBlocked(buyerUsername)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "حساب کاربری شما مسدود شده است و امکان ارسال پیام ندارید.", "status", 403));
+        }
+
+        if (body == null || body.get("adId") == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "شناسه آگهی الزامی است.", "status", 400));
+        }
+        if (body.get("content") == null || body.get("content").toString().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "متن پیام نمی‌تواند خالی باشد.", "status", 400));
+        }
+
+        long adId;
+        try {
+            adId = Long.parseLong(body.get("adId").toString());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "شناسه آگهی نامعتبر است.", "status", 400));
+        }
+
+        Optional<Advertisement> adOpt = advertisementRepository.findById(adId);
+        if (adOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "آگهی مورد نظر یافت نشد.", "status", 404));
+        }
+
+        Advertisement ad = adOpt.get();
+        String sellerUsername = ad.getOwnerUsername();
+
+        if (buyerUsername.equals(sellerUsername)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "شما نمی‌توانید برای آگهی خودتان گفتگو شروع کنید.", "status", 400));
+        }
+
+        if (isBlocked(sellerUsername)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "این کاربر توسط مدیر مسدود شده است و امکان گفتگو با او وجود ندارد.", "status", 403));
+        }
+
         Conversation conversation = conversationRepository
                 .findByAdvertisementIdAndBuyerUsernameAndSellerUsername(adId, buyerUsername, sellerUsername)
                 .orElseGet(() -> conversationRepository.save(
                         new Conversation(ad, buyerUsername, sellerUsername)));
 
+        Message message = new Message();
+        message.setConversation(conversation);
+        message.setSenderUsername(buyerUsername);
+        message.setContent(body.get("content").toString());
+        message.setTimestamp(LocalDateTime.now());
+        messageRepository.save(message);
+
         return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "conversationId", conversation.getId(),
-                "adId", adId,
-                "buyerUsername", buyerUsername,
-                "sellerUsername", sellerUsername
+                "conversationId", conversation.getId()
         ));
     }
 
@@ -145,14 +218,15 @@ public class ChatRestController {
             item.put("adTitle", adTitle);
             item.put("buyerUsername", c.getBuyerUsername());
             item.put("sellerUsername", c.getSellerUsername());
-            messageRepository.findTopByConversationIdOrderByTimestampDesc(c.getId())
-                .ifPresentOrElse(last -> {
-                    item.put("lastMessageContent", last.getContent());
-                    item.put("lastMessageSender", last.getSenderUsername());
-                }, () -> {
-                    item.put("lastMessageContent", "");
-                    item.put("lastMessageSender", "");
-                });
+            // \ud83d\udcac گفتگو فقط وقتی «گفتگو» محسوب می‌شود که حداقل یک پیام داشته باشد
+            var lastMessageOpt = messageRepository.findTopByConversationIdOrderByTimestampDesc(c.getId());
+            if (lastMessageOpt.isEmpty()) {
+                // گفتگوی بدون پیام نباید وجود داشته باشد — رکوردهای قدیمی خالی پاک می‌شوند
+                conversationRepository.delete(c);
+                continue;
+            }
+            item.put("lastMessageContent", lastMessageOpt.get().getContent());
+            item.put("lastMessageSender", lastMessageOpt.get().getSenderUsername());
             data.add(item);
         }
 
