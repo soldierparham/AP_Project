@@ -6,7 +6,7 @@
 
 سامانه خرید و فروش کالای دست‌دوم (مشابه دیوار) — پروژه درس برنامه‌سازی پیشرفته
 
-**Java 17** · **Spring Boot 3** · **JavaFX 17** · **SQLite** · **JWT**
+**Java 17** · **Spring Boot 3** · **JavaFX 25** · **SQLite** · **JWT**
 
 </div>
 
@@ -82,12 +82,12 @@ flowchart LR
     HTTP -- "JSON / REST" --> JF
 ```
 
-| لایه | تکنولوژی |
-|---|---|
-| بک‌اند | Java 17، Spring Boot 3.2، Spring Security، Spring Data JPA / Hibernate، JJWT 0.11.5 |
-| دیتابیس | SQLite (فایل `secondhand.db` خودکار ساخته می‌شود) |
-| فرانت‌اند | JavaFX 17، FXML، Jackson (پنل ادمین) |
-| ارتباط | REST API روی `http://localhost:8080/api` |
+| لایه | تکنولوژی                                                                            |
+|---|-------------------------------------------------------------------------------------|
+| بک‌اند | Java 25، Spring Boot 3.2، Spring Security، Spring Data JPA / Hibernate، JJWT 0.11.5 |
+| دیتابیس | SQLite (فایل `secondhand.db` خودکار ساخته می‌شود)                                    |
+| فرانت‌اند | JavaFX 25، FXML، Jackson (پنل ادمین)                                                |
+| ارتباط | REST API روی `http://localhost:8080/api`                                            |
 
 ## ساختار پروژه
 
@@ -112,7 +112,7 @@ AP_Project_Completed/
 
 ## پیش‌نیازها
 
-- **JDK 17** یا بالاتر
+- **JDK 25**
 - **Apache Maven 3.8+**
 
 ## اجرا
