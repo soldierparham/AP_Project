@@ -16,6 +16,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+/**
+ * فیلتر JWT؛ در هر درخواست، توکن را از هدر Authorization استخراج و اعتبارسنجی کرده و کاربر را احراز هویت می‌کند.
+ */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
@@ -25,6 +28,12 @@ public class JwtFilter extends OncePerRequestFilter {
     @Autowired
     private UserRepository userRepository;
 
+    /**
+     * متد «shouldNotFilter»؛ بخشی از عملکرد کلاس JwtFilter را پیاده‌سازی می‌کند.
+     *
+     * @param request شیء درخواست HTTP
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
@@ -33,6 +42,13 @@ public class JwtFilter extends OncePerRequestFilter {
                 || path.equals("/api/auth/logout") || path.equals("/api/health");
     }
 
+    /**
+     * اجرای فیلتر JWT روی هر درخواست؛ استخراج و اعتبارسنجی توکن از هدر Authorization.
+     *
+     * @param request شیء درخواست HTTP
+     * @param response شیء پاسخ
+     * @param filterChain زنجیره فیلترها
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

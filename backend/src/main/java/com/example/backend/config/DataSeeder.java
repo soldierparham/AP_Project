@@ -34,6 +34,11 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    /**
+     * اجرای مقدار مربوطه.
+     *
+     * @param args آرگومان‌های خط فرمان
+     */
     @Override
     public void run(String... args) {
         seedAdminUser();
@@ -41,6 +46,9 @@ public class DataSeeder implements CommandLineRunner {
         seedCities();
     }
 
+    /**
+     * متد «seedAdminUser»؛ بخشی از عملکرد کلاس DataSeeder را پیاده‌سازی می‌کند.
+     */
     private void seedAdminUser() {
         boolean adminExists = userRepository.findAll().stream()
                 .anyMatch(u -> "ADMIN".equalsIgnoreCase(u.getRole()));
@@ -63,6 +71,9 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    /**
+     * متد «seedCategories»؛ بخشی از عملکرد کلاس DataSeeder را پیاده‌سازی می‌کند.
+     */
     private void seedCategories() {
         if (categoryRepository.count() == 0) {
             List<String> defaults = List.of(
@@ -80,6 +91,9 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    /**
+     * متد «seedCities»؛ بخشی از عملکرد کلاس DataSeeder را پیاده‌سازی می‌کند.
+     */
     private void seedCities() {
         if (cityRepository.count() == 0) {
             List<String> defaults = List.of(

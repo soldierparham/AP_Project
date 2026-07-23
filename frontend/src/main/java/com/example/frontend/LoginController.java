@@ -15,6 +15,9 @@ import javafx.scene.control.TextField;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+/**
+ * کنترلر JavaFX صفحه ورود؛ دریافت شماره تلفن و رمز عبور و ورود کاربر به سامانه.
+ */
 public class LoginController {
 
     @FXML private TextField phoneField;
@@ -51,6 +54,11 @@ public class LoginController {
     }
 
     // 🚫 جلوگیری از تایپ فاصله و کاراکترهای غیرمجاز در فیلد رمز عبور (تایپ و paste هر دو فیلتر می‌شوند)
+    /**
+     * متد «restrictPasswordInput»؛ بخشی از عملکرد کلاس LoginController را پیاده‌سازی می‌کند.
+     *
+     * @param field پارامتر field
+     */
     private void restrictPasswordInput(javafx.scene.control.TextInputControl field) {
         if (field == null) return;
         field.setTextFormatter(new javafx.scene.control.TextFormatter<String>(change ->
@@ -134,6 +142,9 @@ public class LoginController {
                 });
     }
 
+    /**
+     * متد رویداد (Event Handler)؛ هنگام «cancel click» اجرا می‌شود.
+     */
     @FXML
     private void onCancelClick() {
         closeWindow();
@@ -189,6 +200,9 @@ public class LoginController {
         }
     }
 
+    /**
+     * متد «closeWindow»؛ بخشی از عملکرد کلاس LoginController را پیاده‌سازی می‌کند.
+     */
     private void closeWindow() {
         if (phoneField.getScene() != null) {
             Stage stage = (Stage) phoneField.getScene().getWindow();
@@ -250,6 +264,13 @@ public class LoginController {
         return null;
     }
 
+    /**
+     * «alert» را به کاربر نمایش می‌دهد.
+     *
+     * @param type پارامتر type
+     * @param title عنوان
+     * @param content پارامتر content
+     */
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);

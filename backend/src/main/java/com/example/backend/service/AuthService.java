@@ -14,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/**
+ * سرویس احراز هویت؛ منطق ثبت‌نام، ورود و اعتبارسنجی کاربران.
+ */
 @Service
 public class AuthService {
 
@@ -27,10 +30,22 @@ public class AuthService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    /**
+     * بررسی می‌کند که آیا «username exists» برقرار است یا خیر.
+     *
+     * @param username نام کاربری
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     public boolean isUsernameExists(String username) {
         return userRepository.existsByUsername(username);
     }
 
+    /**
+     * بررسی می‌کند که آیا «phone number exists» برقرار است یا خیر.
+     *
+     * @param phoneNumber پارامتر phoneNumber
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     public boolean isPhoneNumberExists(String phoneNumber) {
         return userRepository.existsByPhoneNumber(phoneNumber);
     }
@@ -106,10 +121,23 @@ public class AuthService {
         throw new IllegalArgumentException("شماره تماس یا رمز عبور اشتباه است.");
     }
 
+    /**
+     * بررسی می‌کند که آیا «bcrypt hash» برقرار است یا خیر.
+     *
+     * @param stored پارامتر stored
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     private boolean isBcryptHash(String stored) {
         return stored != null && (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$"));
     }
 
+    /**
+     * متد «matchesPassword»؛ بخشی از عملکرد کلاس AuthService را پیاده‌سازی می‌کند.
+     *
+     * @param rawPassword پارامتر rawPassword
+     * @param storedPassword پارامتر storedPassword
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     private boolean matchesPassword(String rawPassword, String storedPassword) {
         if (storedPassword == null || rawPassword == null) {
             return false;

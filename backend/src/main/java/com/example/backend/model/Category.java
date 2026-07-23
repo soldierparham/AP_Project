@@ -21,23 +21,67 @@ public class Category {
     @Column(name = "parent_id")
     private Long parentId;
 
+    /**
+     * سازنده کلاس Category؛ نمونه جدید با مقادیر داده‌شده ایجاد می‌کند.
+     */
     public Category() {}
 
+    /**
+     * سازنده کلاس Category؛ نمونه جدید با مقادیر داده‌شده ایجاد می‌کند.
+     *
+     * @param name نام
+     */
     public Category(String name) {
         this.name = name;
     }
 
+    /**
+     * سازنده کلاس Category؛ نمونه جدید با مقادیر داده‌شده ایجاد می‌کند.
+     *
+     * @param name نام
+     * @param parentId پارامتر parentId
+     */
     public Category(String name, Long parentId) {
         this.name = name;
         this.parentId = parentId;
     }
 
+    /**
+     * مقدار «id» را برمی‌گرداند.
+     *
+     * @return مقدار عددی نتیجه
+     */
     public Long getId() { return id; }
+    /**
+     * مقدار «id» را تنظیم می‌کند.
+     *
+     * @param id شناسه
+     */
     public void setId(Long id) { this.id = id; }
 
+    /**
+     * مقدار «name» را برمی‌گرداند.
+     *
+     * @return رشته نتیجه
+     */
     public String getName() { return name; }
+    /**
+     * مقدار «name» را تنظیم می‌کند.
+     *
+     * @param name نام
+     */
     public void setName(String name) { this.name = name; }
 
+    /**
+     * مقدار «parent id» را برمی‌گرداند.
+     *
+     * @return مقدار عددی نتیجه
+     */
     public Long getParentId() { return parentId; }
+    /**
+     * مقدار «parent id» را تنظیم می‌کند.
+     *
+     * @param parentId پارامتر parentId
+     */
     public void setParentId(Long parentId) { this.parentId = parentId; }
 }

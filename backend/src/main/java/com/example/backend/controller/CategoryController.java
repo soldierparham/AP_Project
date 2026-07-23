@@ -21,6 +21,12 @@ public class CategoryController {
     @Autowired
     private CategoryRepository categoryRepository;
 
+    /**
+     * مقدار «all categories» را برمی‌گرداند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping
     public ResponseEntity<?> getAllCategories(Principal principal) {
         if (principal == null) {

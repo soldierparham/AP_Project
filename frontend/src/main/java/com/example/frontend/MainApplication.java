@@ -15,6 +15,11 @@ public class MainApplication extends Application {
     public static String jwtToken = "";
     public static String currentUsername = "";
 
+    /**
+     * متد چرخه حیات JavaFX؛ پنجره اصلی برنامه را می‌سازد و صفحه ورود را نمایش می‌دهد.
+     *
+     * @param stage پنجره JavaFX
+     */
     @Override
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("login-view.fxml"));
@@ -49,6 +54,11 @@ public class MainApplication extends Application {
         }
     }
 
+    /**
+     * نقطه شروع اجرای برنامه.
+     *
+     * @param args آرگومان‌های خط فرمان
+     */
     public static void main(String[] args) {
         launch();
     }

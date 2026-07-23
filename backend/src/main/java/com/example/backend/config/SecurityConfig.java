@@ -20,6 +20,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+/**
+ * پیکربندی امنیتی Spring Security؛ تعیین مسیرهای آزاد و محافظت‌شده، غیرفعال‌سازی CSRF و ثبت فیلتر JWT.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableScheduling
@@ -29,11 +32,22 @@ public class SecurityConfig {
     private JwtFilter jwtFilter;
 
     // 🔐 جدید: انکودر رمز عبور BCrypt برای هش کردن رمزها
+    /**
+     * متد «passwordEncoder»؛ بخشی از عملکرد کلاس SecurityConfig را پیاده‌سازی می‌کند.
+     *
+     * @return انکودر رمز عبور (BCrypt)
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * متد «securityFilterChain»؛ بخشی از عملکرد کلاس SecurityConfig را پیاده‌سازی می‌کند.
+     *
+     * @param http شیء پیکربندی امنیتی HTTP
+     * @return زنجیره فیلتر امنیتی پیکربندی‌شده
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -83,6 +97,11 @@ public class SecurityConfig {
     }
 
     // 🌐 تنظیمات سراسری CORS
+    /**
+     * متد «corsConfigurationSource»؛ بخشی از عملکرد کلاس SecurityConfig را پیاده‌سازی می‌کند.
+     *
+     * @return مقدار بازگشتی
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

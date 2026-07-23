@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * کنترلر REST آگهی‌ها؛ ثبت، ویرایش، حذف و دریافت لیست آگهی‌ها با فیلتر و مرتب‌سازی (جدیدترین، قدیمی‌ترین، ارزان‌ترین، گران‌ترین).
+ */
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")

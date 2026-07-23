@@ -100,6 +100,9 @@ public class HelloController {
 
     // ---------------------------------------------------------- شروع
 
+    /**
+     * متد چرخه حیات JavaFX؛ پس از بارگذاری FXML به‌صورت خودکار اجرا می‌شود و رابط کاربری را آماده می‌کند.
+     */
     @FXML
     public void initialize() {
         // 🔑 اصلاح مهم: نام کاربری واقعی از توکن JWT خوانده می‌شود.
@@ -175,6 +178,13 @@ public class HelloController {
         showHomeScreen();
     }
 
+    /**
+     * کامپوننت/ساختار «themed menu item» را می‌سازد و برمی‌گرداند.
+     *
+     * @param text متن
+     * @param action پارامتر action
+     * @return مقدار بازگشتی
+     */
     private CustomMenuItem buildThemedMenuItem(String text, Runnable action) {
         Label lbl = new Label(text);
         final String normalStyle = "-fx-text-fill: #b9a6df; -fx-font-family: 'Vazirmatn'; -fx-font-size: 14px; -fx-padding: 8 14 8 14; -fx-background-color: transparent; -fx-background-radius: 6;";
@@ -192,6 +202,11 @@ public class HelloController {
         return item;
     }
 
+    /**
+     * استایل «combo box» را تنظیم می‌کند.
+     *
+     * @param combo پارامتر combo
+     */
     public static void styleComboBox(ComboBox<String> combo) {
         final String btnStyle = "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-padding: 0 6 0 6;";
         ListCell<String> btnCell = new ListCell<>() {
@@ -242,6 +257,9 @@ public class HelloController {
     }
 
     // 🗂 بارگذاری پویای دسته‌بندی‌ها از سرور (شامل دسته‌های جدیدی که ادمین اضافه می‌کند)
+    /**
+     * داده‌های مربوط به «categories into sidebar» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadCategoriesIntoSidebar() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/categories"))
@@ -421,6 +439,9 @@ public class HelloController {
         mainBorderPane.setRight(visible ? categoryVBox : null);
     }
 
+    /**
+     * «home screen» را به کاربر نمایش می‌دهد.
+     */
     public void showHomeScreen() {
         setActiveTopBarSection("home");
         setCategorySidebarVisible(true);
@@ -430,6 +451,9 @@ public class HelloController {
         fetchHomeAds(query);
     }
 
+    /**
+     * متد رویداد (Event Handler)؛ هنگام «search click» اجرا می‌شود.
+     */
     @FXML
     protected void onSearchClick() {
         refreshCurrentListView();
@@ -520,6 +544,11 @@ public class HelloController {
                 }));
     }
 
+    /**
+     * «conversations list» را در رابط کاربری رسم می‌کند.
+     *
+     * @param responseBody پارامتر responseBody
+     */
     private void renderConversationsList(String responseBody) {
         VBox listBox = new VBox(12);
         listBox.setPadding(new Insets(25));
@@ -641,6 +670,11 @@ public class HelloController {
         mainBorderPane.setCenter(scrollPane);
     }
 
+    /**
+     * دریافت لیست آگهی‌های تأییدشده از سرور با اعمال فیلترها و مرتب‌سازی و نمایش در صفحه اصلی.
+     *
+     * @param searchQuery پارامتر searchQuery
+     */
     private void fetchHomeAds(String searchQuery) {
         StringBuilder url = new StringBuilder(BASE_URL + "/api/advertisements?sort=" + filterSort);
         if (!searchQuery.isBlank()) url.append("&search=").append(encode(searchQuery));
@@ -667,6 +701,9 @@ public class HelloController {
 
     // ---------------------------------------------------------- آگهی‌های من
 
+    /**
+     * بارگذاری و نمایش آگهی‌های کاربر جاری («آگهی‌های من»).
+     */
     @FXML
     protected void onLoadMyAdsClick() {
         setActiveTopBarSection("myDivar");
@@ -698,6 +735,9 @@ public class HelloController {
 
     // ---------------------------------------------------------- ⭐ علاقه‌مندی‌ها
 
+    /**
+     * «favorites screen» را به کاربر نمایش می‌دهد.
+     */
     private void showFavoritesScreen() {
         setActiveTopBarSection("myDivar");
         setCategorySidebarVisible(true);
@@ -737,6 +777,12 @@ public class HelloController {
                 });
     }
 
+    /**
+     * وضعیت «favorite» را تغییر می‌دهد.
+     *
+     * @param adId شناسه آگهی
+     * @param sourceBtn پارامتر sourceBtn
+     */
     private void toggleFavorite(long adId, Button sourceBtn) {
         boolean removing = cachedIsFavoritesView || favoriteAdIds.contains(adId);
 
@@ -775,6 +821,11 @@ public class HelloController {
 
     // ---------------------------------------------------------- ✅ فروخته شد
 
+    /**
+     * متد «markAdAsSold»؛ بخشی از عملکرد کلاس HelloController را پیاده‌سازی می‌کند.
+     *
+     * @param adId شناسه آگهی
+     */
     private void markAdAsSold(long adId) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/advertisements/" + adId + "/sold"))
@@ -798,6 +849,12 @@ public class HelloController {
 
     // ---------------------------------------------------------- ابزارهای عمومی
 
+    /**
+     * متد «authorizedGet»؛ بخشی از عملکرد کلاس HelloController را پیاده‌سازی می‌کند.
+     *
+     * @param url آدرس
+     * @return مقدار بازگشتی
+     */
     private HttpRequest authorizedGet(String url) {
         return HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -806,10 +863,21 @@ public class HelloController {
                 .build();
     }
 
+    /**
+     * متد «encode»؛ بخشی از عملکرد کلاس HelloController را پیاده‌سازی می‌کند.
+     *
+     * @param value مقدار
+     * @return رشته نتیجه
+     */
     private String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
+    /**
+     * «and refresh token» را بررسی و اعتبارسنجی می‌کند.
+     *
+     * @param response شیء پاسخ
+     */
     private void checkAndRefreshToken(HttpResponse<String> response) {
         Optional<String> header = response.headers().firstValue("Authorization");
         header.ifPresent(h -> {
@@ -820,6 +888,11 @@ public class HelloController {
         });
     }
 
+    /**
+     * رویداد «unauthorized» را مدیریت می‌کند.
+     *
+     * @param statusCode پارامتر statusCode
+     */
     private void handleUnauthorized(int statusCode) {
         Stage stage = (Stage) mainBorderPane.getScene().getWindow();
         MainApplication.redirectToLogin(stage, "نشست شما منقضی شده است. لطفاً دوباره ورود کنید.");
@@ -830,6 +903,11 @@ public class HelloController {
         UiTheme.toast(message);
     }
 
+    /**
+     * «error alert» را به کاربر نمایش می‌دهد.
+     *
+     * @param message پیام
+     */
     private void showErrorAlert(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR,
                 (message == null || message.isBlank() || "مشخص نشده".equals(message))
@@ -859,6 +937,13 @@ public class HelloController {
 
     // ---------------------------------------------------------- رندر لیست آگهی‌ها
 
+    /**
+     * رندر لیست آگهی‌های دریافتی از سرور به‌صورت کارت در صفحه.
+     *
+     * @param responseBody پارامتر responseBody
+     * @param isMyAdsView پارامتر isMyAdsView
+     * @param searchQuery پارامتر searchQuery
+     */
     private void renderAdvertisements(String responseBody, boolean isMyAdsView, String searchQuery) {
         VBox adsContainer = new VBox(15);
         adsContainer.setPadding(new Insets(20));
@@ -921,6 +1006,13 @@ public class HelloController {
         mainBorderPane.setCenter(scrollPane);
     }
 
+    /**
+     * ساخت کارت گرافیکی یک آگهی شامل تصویر، عنوان، قیمت و دکمه‌های عملیات.
+     *
+     * @param adJson پارامتر adJson
+     * @param isMyAdsView پارامتر isMyAdsView
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildAdCard(String adJson, boolean isMyAdsView) {
         String title = extractJsonField(adJson, "title");
         String description = extractJsonField(adJson, "description");
@@ -1076,6 +1168,11 @@ public class HelloController {
     }
 
     // نمایش بزرگ عکس به صورت لایه روی همان صفحه (با کلیک بسته می‌شود)
+    /**
+     * «enlarged image» را به کاربر نمایش می‌دهد.
+     *
+     * @param imageUrl آدرس تصویر
+     */
     private void showEnlargedImage(String imageUrl) {
         javafx.scene.Scene scene = mainBorderPane.getScene();
         if (scene == null) return;
@@ -1113,6 +1210,9 @@ public class HelloController {
 
     // ---------------------------------------------------------- 👤 پروفایل کاربر (مشخصات + امتیاز و نظرات دریافتی)
 
+    /**
+     * باز کردن صفحه پروفایل کاربری؛ شامل فرم ویرایش مشخصات و بخش امتیازها و نظرات دریافتی.
+     */
     private void openProfileEditPage() {
         setActiveTopBarSection("myDivar");
         setCategorySidebarVisible(false);
@@ -1308,10 +1408,26 @@ public class HelloController {
         return card;
     }
 
+    /**
+     * پاک‌سازی مقدار فیلد پروفایل (حذف مقادیر null یا نامشخص).
+     *
+     * @param value مقدار
+     * @return رشته نتیجه
+     */
     private String cleanProfileField(String value) {
         return (value == null || "مشخص نشده".equals(value)) ? "" : value;
     }
 
+    /**
+     * «profile changes» را ذخیره می‌کند.
+     *
+     * @param name نام
+     * @param username نام کاربری
+     * @param phone شماره تلفن
+     * @param email پارامتر email
+     * @param currentPass پارامتر currentPass
+     * @param newPass پارامتر newPass
+     */
     private void saveProfileChanges(String name, String username, String phone, String email, String currentPass, String newPass) {
         if (name.isBlank()) {
             showErrorAlert("نام نمی‌تواند خالی باشد.");
@@ -1371,10 +1487,22 @@ public class HelloController {
                 }));
     }
 
+    /**
+     * escape کردن کاراکترهای خاص برای قرار گرفتن امن مقدار در رشته JSON.
+     *
+     * @param value مقدار
+     * @return رشته نتیجه
+     */
     private String escapeJsonValue(String value) {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
+    /**
+     * متد «statusToPersian»؛ بخشی از عملکرد کلاس HelloController را پیاده‌سازی می‌کند.
+     *
+     * @param status پارامتر status
+     * @return رشته نتیجه
+     */
     private String statusToPersian(String status) {
         if (status == null) return "";
         switch (status.toUpperCase()) {
@@ -1391,6 +1519,12 @@ public class HelloController {
         }
     }
 
+    /**
+     * متد «statusToColor»؛ بخشی از عملکرد کلاس HelloController را پیاده‌سازی می‌کند.
+     *
+     * @param status پارامتر status
+     * @return رشته نتیجه
+     */
     private String statusToColor(String status) {
         if (status == null) return "#b9a6df";
         switch (status.toUpperCase()) {
@@ -1409,6 +1543,17 @@ public class HelloController {
 
     // ---------------------------------------------------------- ویرایش و حذف آگهی
 
+    /**
+     * صفحه/بخش «edit ad page» را باز می‌کند.
+     *
+     * @param adId شناسه آگهی
+     * @param title عنوان
+     * @param description توضیحات
+     * @param price قیمت
+     * @param city شهر
+     * @param category دسته‌بندی
+     * @param currentImageUrl پارامتر currentImageUrl
+     */
     private void openEditAdPage(long adId, String title, String description, String price, String city, String category, String currentImageUrl) {
         VBox editBox = new VBox(20);
         editBox.setPadding(new Insets(30, 150, 30, 150));
@@ -1735,6 +1880,11 @@ public class HelloController {
         return future;
     }
 
+    /**
+     * «ad» را حذف می‌کند.
+     *
+     * @param adId شناسه آگهی
+     */
     private void deleteAd(long adId) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/advertisements/" + adId))
@@ -1756,6 +1906,12 @@ public class HelloController {
                 }));
     }
 
+    /**
+     * کاراکترهای خاص «json» را escape می‌کند.
+     *
+     * @param value مقدار
+     * @return رشته نتیجه
+     */
     private String escapeJson(String value) {
         if (value == null) return "";
         return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
@@ -1765,6 +1921,11 @@ public class HelloController {
 
 
     // ——— نمایشگر تصویر با قابلیت زوم و جابجایی ———
+    /**
+     * «image zoom» را به کاربر نمایش می‌دهد.
+     *
+     * @param imageUrl آدرس تصویر
+     */
     private void showImageZoom(String imageUrl) {
         javafx.stage.Stage zoomStage = new javafx.stage.Stage();
         zoomStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
@@ -1845,6 +2006,16 @@ public class HelloController {
         zoomStage.show();
     }
 
+    /**
+     * صفحه/بخش «ad details page» را باز می‌کند.
+     *
+     * @param adId شناسه آگهی
+     * @param title عنوان
+     * @param description توضیحات
+     * @param rawPrice قیمت خام (رشته)
+     * @param owner نام کاربری صاحب آگهی
+     * @param imageUrl آدرس تصویر
+     */
     private void openAdDetailsPage(long adId, String title, String description,
                                    String rawPrice, String owner, String imageUrl) {
         VBox detailsBox = new VBox(15);
@@ -1973,6 +2144,12 @@ public class HelloController {
 
     // ---------------------------------------------------------- ⭐ امتیاز فروشنده
 
+    /**
+     * دریافت و نمایش میانگین امتیاز فروشنده یک آگهی از سرور.
+     *
+     * @param adId شناسه آگهی
+     * @param target پارامتر target
+     */
     private void loadSellerRating(long adId, Label target) {
         client.sendAsync(authorizedGet(BASE_URL + "/api/ratings/ad/" + adId), HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> Platform.runLater(() -> {
@@ -1990,6 +2167,16 @@ public class HelloController {
                 }));
     }
 
+    /**
+     * باز کردن صفحه امتیازدهی به فروشنده به‌صورت درون‌صفحه‌ای؛ شامل انتخاب ستاره و نوشتن نظر اختیاری.
+     *
+     * @param adId شناسه آگهی
+     * @param title عنوان
+     * @param description توضیحات
+     * @param rawPrice قیمت خام (رشته)
+     * @param owner نام کاربری صاحب آگهی
+     * @param imageUrl آدرس تصویر
+     */
     private void openRatingPage(long adId, String title, String description,
                                  String rawPrice, String owner, String imageUrl) {
         VBox ratingBox = new VBox(20);
@@ -2116,6 +2303,13 @@ public class HelloController {
 
     // ---------------------------------------------------------- 💬 چت
 
+    /**
+     * صفحه/بخش «chat with user» را باز می‌کند.
+     *
+     * @param adId شناسه آگهی
+     * @param sellerUsername نام کاربری فروشنده
+     * @param adTitle عنوان آگهی
+     */
     private void openChatWithUser(long adId, String sellerUsername, String adTitle) {
         String body = "{\"adId\":" + adId + "}";
 
@@ -2147,6 +2341,14 @@ public class HelloController {
                 }));
     }
 
+    /**
+     * صفحه/بخش «chat pane» را باز می‌کند.
+     *
+     * @param conversationId شناسه مکالمه
+     * @param adId شناسه آگهی
+     * @param otherUser پارامتر otherUser
+     * @param adTitle عنوان آگهی
+     */
     private void openChatPane(long conversationId, long adId, String otherUser, String adTitle) {
         final long[] convIdHolder = { conversationId };
         setCategorySidebarVisible(false);
@@ -2260,6 +2462,12 @@ public class HelloController {
         }
     }
 
+    /**
+     * داده‌های مربوط به «chat messages» را بارگذاری و نمایش می‌دهد.
+     *
+     * @param conversationId شناسه مکالمه
+     * @param messagesBox پارامتر messagesBox
+     */
     private void loadChatMessages(long conversationId, VBox messagesBox) {
         client.sendAsync(authorizedGet(BASE_URL + "/api/chat/conversations/" + conversationId + "/messages"),
                         HttpResponse.BodyHandlers.ofString())
@@ -2340,6 +2548,9 @@ public class HelloController {
     }
 
     // دریافت لیست شهرها از سرور تا تغییرات ادمین (افزودن/ویرایش/حذف) اعمال شود
+    /**
+     * داده‌های مربوط به «cities from server» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadCitiesFromServer() {
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                 .uri(java.net.URI.create(BASE_URL + "/api/cities"))
@@ -2379,6 +2590,9 @@ public class HelloController {
                 });
     }
 
+    /**
+     * صفحه/بخش «admin panel» را باز می‌کند.
+     */
     private void openAdminPanel() {
         setActiveTopBarSection("myDivar");
         setCategorySidebarVisible(false);
@@ -2390,6 +2604,9 @@ public class HelloController {
 
     // ---------------------------------------------------------- ثبت آگهی و خروج
 
+    /**
+     * متد رویداد (Event Handler)؛ هنگام «register ad screen click» اجرا می‌شود.
+     */
     @FXML
     protected void onRegisterAdScreenClick() {
         setActiveTopBarSection("register");
@@ -2407,6 +2624,9 @@ public class HelloController {
         }
     }
 
+    /**
+     * متد رویداد (Event Handler)؛ هنگام «logout click» اجرا می‌شود.
+     */
     @FXML
     protected void onLogoutClick() {
         ButtonType yesBt = new ButtonType("بله، خارج شو", javafx.scene.control.ButtonBar.ButtonData.YES);

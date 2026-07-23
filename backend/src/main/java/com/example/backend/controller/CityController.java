@@ -20,6 +20,12 @@ public class CityController {
     @Autowired
     private CityRepository cityRepository;
 
+    /**
+     * مقدار «all cities» را برمی‌گرداند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping
     public ResponseEntity getAllCities(Principal principal) {
         if (principal == null) {

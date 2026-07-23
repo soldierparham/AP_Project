@@ -58,6 +58,12 @@ public class AdminController {
 
     // ---------- ابزار کمکی: کنترل دسترسی مدیر ----------
 
+    /**
+     * «admin access» را بررسی و اعتبارسنجی می‌کند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     private ResponseEntity checkAdminAccess(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -181,6 +187,12 @@ public class AdminController {
 
     // ---------- مدیریت کاربران ----------
 
+    /**
+     * متد «listUsers»؛ بخشی از عملکرد کلاس AdminController را پیاده‌سازی می‌کند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/users")
     public ResponseEntity listUsers(Principal principal) {
         ResponseEntity denied = checkAdminAccess(principal);
@@ -235,6 +247,13 @@ public class AdminController {
         ));
     }
 
+    /**
+     * «user» را از مسدودی خارج می‌کند.
+     *
+     * @param id شناسه
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @Transactional
     @PostMapping("/users/{id}/unblock")
     public ResponseEntity unblockUser(@PathVariable Long id, Principal principal) {
@@ -259,6 +278,12 @@ public class AdminController {
 
     // ---------- مدیریت دسته‌بندی‌ها ----------
 
+    /**
+     * متد «listCategories»؛ بخشی از عملکرد کلاس AdminController را پیاده‌سازی می‌کند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/categories")
     public ResponseEntity listCategories(Principal principal) {
         ResponseEntity denied = checkAdminAccess(principal);
@@ -270,6 +295,13 @@ public class AdminController {
         ));
     }
 
+    /**
+     * «category» را اضافه می‌کند.
+     *
+     * @param body بدنه درخواست
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @Transactional
     @PostMapping("/categories")
     public ResponseEntity addCategory(@RequestBody Map<String, Object> body, Principal principal) {
@@ -420,6 +452,12 @@ public class AdminController {
 
     // ---------- مدیریت شهرها ----------
 
+    /**
+     * متد «listCities»؛ بخشی از عملکرد کلاس AdminController را پیاده‌سازی می‌کند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/cities")
     public ResponseEntity listCities(Principal principal) {
         ResponseEntity denied = checkAdminAccess(principal);
@@ -431,6 +469,13 @@ public class AdminController {
         ));
     }
 
+    /**
+     * «city» را اضافه می‌کند.
+     *
+     * @param body بدنه درخواست
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @Transactional
     @PostMapping("/cities")
     public ResponseEntity addCity(@RequestBody Map<String, Object> body, Principal principal) {
@@ -540,6 +585,12 @@ public class AdminController {
 
     // ---------- داشبورد آماری (امتیازی) ----------
 
+    /**
+     * مقدار «stats» را برمی‌گرداند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/stats")
     public ResponseEntity getStats(Principal principal) {
         ResponseEntity denied = checkAdminAccess(principal);

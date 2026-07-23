@@ -53,6 +53,12 @@ public class UserProfileController {
     @Autowired
     private MessageRepository messageRepository;
 
+    /**
+     * «current user» را جستجو و پیدا می‌کند.
+     *
+     * @param principal پارامتر principal
+     * @return مقدار موردنظر در صورت وجود
+     */
     private Optional<User> findCurrentUser(Principal principal) {
         if (principal == null) return Optional.empty();
         return userRepository.findByUsername(principal.getName())
@@ -194,10 +200,23 @@ public class UserProfileController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * بررسی می‌کند که آیا «bcrypt hash» برقرار است یا خیر.
+     *
+     * @param stored پارامتر stored
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     private boolean isBcryptHash(String stored) {
         return stored != null && (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$"));
     }
 
+    /**
+     * متد «matchesPassword»؛ بخشی از عملکرد کلاس UserProfileController را پیاده‌سازی می‌کند.
+     *
+     * @param rawPassword پارامتر rawPassword
+     * @param storedPassword پارامتر storedPassword
+     * @return در صورت برقراری شرط true و در غیر این صورت false
+     */
     private boolean matchesPassword(String rawPassword, String storedPassword) {
         if (storedPassword == null || rawPassword == null) {
             return false;

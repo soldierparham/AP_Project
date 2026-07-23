@@ -55,6 +55,13 @@ public class RatingController {
                 .orElse(false);
     }
 
+    /**
+     * ثبت امتیاز (و نظر اختیاری) برای فروشنده یک آگهی؛ شامل بررسی قوانین (عدم امتیاز به خود، عدم تکرار، داشتن گفتگو).
+     *
+     * @param body بدنه درخواست
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @Transactional
     @PostMapping
     public ResponseEntity submitRating(@RequestBody Map<String, Object> body, Principal principal) {
@@ -144,6 +151,12 @@ public class RatingController {
         ));
     }
 
+    /**
+     * مقدار «rating for ad» را برمی‌گرداند.
+     *
+     * @param adId شناسه آگهی
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/ad/{adId}")
     public ResponseEntity getRatingForAd(@PathVariable Long adId) {
         Optional adOpt = advertisementRepository.findById(adId);
@@ -163,6 +176,12 @@ public class RatingController {
         ));
     }
 
+    /**
+     * مقدار «rating for seller» را برمی‌گرداند.
+     *
+     * @param username نام کاربری
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/seller/{username}")
     public ResponseEntity getRatingForSeller(@PathVariable String username) {
         return buildSellerRatingsResponse(username);
@@ -209,6 +228,12 @@ public class RatingController {
         ));
     }
 
+    /**
+     * متد «averageForSeller»؛ بخشی از عملکرد کلاس RatingController را پیاده‌سازی می‌کند.
+     *
+     * @param sellerUsername نام کاربری فروشنده
+     * @return مقدار عددی نتیجه
+     */
     private double averageForSeller(String sellerUsername) {
         List<Rating> ratings = ratingRepository.findBySellerUsername(sellerUsername);
         double avg = ratings.stream().mapToInt(Rating::getScore).average().orElse(0.0);

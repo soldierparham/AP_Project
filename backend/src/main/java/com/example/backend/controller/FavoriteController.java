@@ -33,6 +33,12 @@ public class FavoriteController {
     @Autowired
     private AdvertisementRepository advertisementRepository;
 
+    /**
+     * مقدار «my favorites» را برمی‌گرداند.
+     *
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping
     public ResponseEntity<?> getMyFavorites(Principal principal) {
         if (principal == null) {
@@ -53,6 +59,13 @@ public class FavoriteController {
         ));
     }
 
+    /**
+     * «favorite» را اضافه می‌کند.
+     *
+     * @param adId شناسه آگهی
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @Transactional
     @PostMapping("/{adId}")
     public ResponseEntity<?> addFavorite(@PathVariable Long adId, Principal principal) {
@@ -89,6 +102,13 @@ public class FavoriteController {
         ));
     }
 
+    /**
+     * «favorite» را حذف می‌کند.
+     *
+     * @param adId شناسه آگهی
+     * @param principal پارامتر principal
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @Transactional
     @DeleteMapping("/{adId}")
     public ResponseEntity<?> removeFavorite(@PathVariable Long adId, Principal principal) {

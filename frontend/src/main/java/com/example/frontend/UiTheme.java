@@ -20,6 +20,9 @@ import javafx.util.Duration;
  */
 public final class UiTheme {
 
+    /**
+     * سازنده کلاس UiTheme؛ نمونه جدید با مقادیر داده‌شده ایجاد می‌کند.
+     */
     private UiTheme() {
     }
 
@@ -76,7 +79,11 @@ public final class UiTheme {
                 + "-fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8;"
                 + "-fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-padding: 8;");
 
-
+        // 🔧 برچسب دکمه‌های پیش‌فرض (OK/Cancel) باید همین‌جا، پیش از نمایش دیالوگ، به فارسی تغییر کند.
+        // اگر این تغییر بعد از نمایش دیالوگ انجام شود (مثل حالت قبلی)، عرض پنجره بر اساس متن انگلیسی
+        // «Cancel» محاسبه و ثابت می‌شود و دکمه‌ی فارسی «انصراف» به‌طور ناقص/بریده دیده می‌شود.
+        // چون فقط ButtonData عوض نمی‌شود (همان OK_DONE / CANCEL_CLOSE می‌ماند)، منطق showAndWait().ifPresent(...)
+        // در جاهایی که از این دیالوگ استفاده می‌کنند بدون تغییر درست کار می‌کند.
         for (int i = 0; i < pane.getButtonTypes().size(); i++) {
             ButtonType bt = pane.getButtonTypes().get(i);
             if (bt.getButtonData() == javafx.scene.control.ButtonBar.ButtonData.OK_DONE) {
@@ -86,7 +93,8 @@ public final class UiTheme {
             }
         }
 
-
+        // رنگ‌آمیزی باید بعد از نمایش دیالوگ اعمال شود، وگرنه lookup کار نمی‌کند؛ اما دیگر متنی تغییر نمی‌دهیم،
+        // پس اندازه‌ی پنجره از همان ابتدا با متن نهایی فارسی محاسبه شده و نیازی به resize دوباره نیست.
         dialog.setOnShown(ev -> {
             pane.applyCss();
             pane.layout();

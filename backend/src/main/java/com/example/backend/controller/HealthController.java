@@ -17,6 +17,11 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class HealthController {
 
+    /**
+     * متد «health»؛ بخشی از عملکرد کلاس HealthController را پیاده‌سازی می‌کند.
+     *
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return ResponseEntity.ok(Map.of(

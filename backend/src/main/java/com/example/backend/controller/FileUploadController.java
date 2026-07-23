@@ -28,6 +28,13 @@ public class FileUploadController {
     private static final String UPLOAD_DIR = System.getProperty("user.dir") + File.separator + "uploads" + File.separator;
 
     // ⚠️ فرانت‌اند به /upload (بدون /api) پست می‌کند؛ هر دو مسیر پذیرفته می‌شوند
+    /**
+     * «files» را روی سرور آپلود می‌کند.
+     *
+     * @param file فایل
+     * @param files پارامتر files
+     * @return پاسخ HTTP شامل وضعیت و بدنه نتیجه عملیات
+     */
     @PostMapping({"/upload", "/api/upload"})
     public ResponseEntity<?> uploadFiles(
             @RequestParam(value = "file", required = false) MultipartFile file,

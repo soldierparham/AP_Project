@@ -69,6 +69,9 @@ public class RegisterAdController {
     private HelloController helloController;
     private final HttpClient client = HttpClient.newHttpClient();
 
+    /**
+     * متد چرخه حیات JavaFX؛ پس از بارگذاری FXML به‌صورت خودکار اجرا می‌شود و رابط کاربری را آماده می‌کند.
+     */
     @FXML
     public void initialize() {
         cityInput.getItems().addAll(
@@ -100,6 +103,9 @@ public class RegisterAdController {
     }
 
     // 🗂 دریافت دسته‌بندی‌ها از سرور: فقط دسته‌های اصلی در لیست اول؛ زیردسته‌ها در لیست دوم
+    /**
+     * داده‌های مربوط به «categories from server» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadCategoriesFromServer() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(HelloController.BASE_URL + "/api/categories"))
@@ -165,6 +171,9 @@ public class RegisterAdController {
     }
 
     // دریافت لیست شهرها از سرور تا شهرهای جدید ادمین هم قابل انتخاب باشند
+    /**
+     * داده‌های مربوط به «cities from server» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadCitiesFromServer() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(HelloController.BASE_URL + "/api/cities"))
@@ -189,6 +198,11 @@ public class RegisterAdController {
                 });
     }
 
+    /**
+     * مقدار «hello controller» را تنظیم می‌کند.
+     *
+     * @param helloController پارامتر helloController
+     */
     public void setHelloController(HelloController helloController) {
         this.helloController = helloController;
     }
@@ -502,6 +516,9 @@ public class RegisterAdController {
         return null;
     }
 
+    /**
+     * متد رویداد (Event Handler)؛ هنگام «cancel click» اجرا می‌شود.
+     */
     @FXML
     private void onCancelClick() {
         clearFormFields();
@@ -511,6 +528,9 @@ public class RegisterAdController {
         }
     }
 
+    /**
+     * «form fields» را پاک می‌کند.
+     */
     private void clearFormFields() {
         titleInput.clear();
         priceInput.clear();
@@ -527,6 +547,12 @@ public class RegisterAdController {
         renderImageThumbs();
     }
 
+    /**
+     * کاراکترهای خاص «json» را escape می‌کند.
+     *
+     * @param input پارامتر input
+     * @return رشته نتیجه
+     */
     private String escapeJson(String input) {
         if (input == null) return "";
         return input.replace("\\", "\\\\")
@@ -535,6 +561,13 @@ public class RegisterAdController {
                 .replace("\r", "");
     }
 
+    /**
+     * «alert» را به کاربر نمایش می‌دهد.
+     *
+     * @param type پارامتر type
+     * @param title عنوان
+     * @param content پارامتر content
+     */
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);

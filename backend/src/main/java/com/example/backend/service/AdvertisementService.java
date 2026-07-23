@@ -20,6 +20,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * سرویس آگهی‌ها؛ منطق تجاری فیلتر، جستجو و مرتب‌سازی آگهی‌ها.
+ */
 @Service
 public class AdvertisementService {
 
@@ -52,11 +55,22 @@ public class AdvertisementService {
     }
 
     // دریافت تمام آگهی‌ها
+    /**
+     * مقدار «all advertisements» را برمی‌گرداند.
+     *
+     * @return لیست نتایج
+     */
     public List<Advertisement> getAllAdvertisements() {
         return advertisementRepository.findAll();
     }
 
     // دریافت آگهی‌های کاربران دیگر (به جز کاربر جاری) — بدون فیلتر وضعیت (نسخه قدیمی)
+    /**
+     * مقدار «ads except owner» را برمی‌گرداند.
+     *
+     * @param ownerUsername پارامتر ownerUsername
+     * @return لیست نتایج
+     */
     public List<Advertisement> getAdsExceptOwner(String ownerUsername) {
         return advertisementRepository.findByOwnerUsernameNot(ownerUsername);
     }
@@ -125,6 +139,12 @@ public class AdvertisementService {
     }
 
     // دریافت آگهی‌های اختصاصی یک کاربر (با هر وضعیتی، تا مالک وضعیت آگهی خود را ببیند)
+    /**
+     * مقدار «ads by username» را برمی‌گرداند.
+     *
+     * @param username نام کاربری
+     * @return لیست نتایج
+     */
     public List<Advertisement> getAdsByUsername(String username) {
         return advertisementRepository.findByOwnerUsername(username);
     }
@@ -188,6 +208,12 @@ public class AdvertisementService {
         return stream.sorted(comparator).collect(Collectors.toList());
     }
 
+    /**
+     * مقدار «ad by id» را برمی‌گرداند.
+     *
+     * @param id شناسه
+     * @return مقدار موردنظر در صورت وجود
+     */
     public Optional<Advertisement> getAdById(Long id) {
         return advertisementRepository.findById(id);
     }

@@ -15,6 +15,9 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
+/**
+ * کنترلر JavaFX ثبت‌نام؛ دریافت اطلاعات کاربر جدید و ایجاد حساب کاربری.
+ */
 public class RegisterController {
 
     // نگاشت دقیق فیلدها با fx:id های داخل FXML
@@ -46,6 +49,11 @@ public class RegisterController {
     }
 
     // 🚫 جلوگیری از تایپ فاصله و کاراکترهای غیرمجاز در فیلد رمز عبور (تایپ و paste هر دو فیلتر می‌شوند)
+    /**
+     * متد «restrictPasswordInput»؛ بخشی از عملکرد کلاس RegisterController را پیاده‌سازی می‌کند.
+     *
+     * @param field پارامتر field
+     */
     private void restrictPasswordInput(javafx.scene.control.TextInputControl field) {
         if (field == null) return;
         field.setTextFormatter(new javafx.scene.control.TextFormatter<String>(change ->

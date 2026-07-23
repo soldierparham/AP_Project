@@ -10,6 +10,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class BackendApplication {
 
+    /**
+     * نقطه شروع اجرای برنامه.
+     *
+     * @param args آرگومان‌های خط فرمان
+     */
     public static void main(String[] args) {
         SpringApplication.run(BackendApplication.class, args);
     }

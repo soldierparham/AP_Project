@@ -3,6 +3,7 @@ package com.example.backend.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+/** پیام متنی داخل یک گفتگو */
 @Entity
 @Table(name = "messages")
 public class Message {
@@ -11,62 +12,86 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 🔄 تغییر اصلی: پیام به جای گیرنده، مستقیماً به یک گفتگو (Conversation) متصل می‌شود
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversation_id", nullable = false)
     private Conversation conversation;
 
+    @Column(name = "sender_username", nullable = false)
     private String senderUsername;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(nullable = false)
     private LocalDateTime timestamp;
 
-    // سازنده‌ها
+    /**
+     * سازنده کلاس Message؛ نمونه جدید با مقادیر داده‌شده ایجاد می‌کند.
+     */
     public Message() {}
 
-    public Message(Conversation conversation, String senderUsername, String content, LocalDateTime timestamp) {
-        this.conversation = conversation;
-        this.senderUsername = senderUsername;
-        this.content = content;
-        this.timestamp = timestamp;
-    }
+    /**
+     * مقدار «id» را برمی‌گرداند.
+     *
+     * @return مقدار عددی نتیجه
+     */
+    public Long getId() { return id; }
+    /**
+     * مقدار «id» را تنظیم می‌کند.
+     *
+     * @param id شناسه
+     */
+    public void setId(Long id) { this.id = id; }
 
-    // گترها و سترها
-    public Long getId() {
-        return id;
-    }
+    /**
+     * مقدار «conversation» را برمی‌گرداند.
+     *
+     * @return مقدار بازگشتی
+     */
+    public Conversation getConversation() { return conversation; }
+    /**
+     * مقدار «conversation» را تنظیم می‌کند.
+     *
+     * @param conversation پارامتر conversation
+     */
+    public void setConversation(Conversation conversation) { this.conversation = conversation; }
 
-    public Conversation getConversation() {
-        return conversation;
-    }
+    /**
+     * مقدار «sender username» را برمی‌گرداند.
+     *
+     * @return رشته نتیجه
+     */
+    public String getSenderUsername() { return senderUsername; }
+    /**
+     * مقدار «sender username» را تنظیم می‌کند.
+     *
+     * @param senderUsername پارامتر senderUsername
+     */
+    public void setSenderUsername(String senderUsername) { this.senderUsername = senderUsername; }
 
-    public void setConversation(Conversation conversation) {
-        this.conversation = conversation;
-    }
+    /**
+     * مقدار «content» را برمی‌گرداند.
+     *
+     * @return رشته نتیجه
+     */
+    public String getContent() { return content; }
+    /**
+     * مقدار «content» را تنظیم می‌کند.
+     *
+     * @param content پارامتر content
+     */
+    public void setContent(String content) { this.content = content; }
 
-    public String getSenderUsername() {
-        return senderUsername;
-    }
-
-    public void setSenderUsername(String senderUsername) {
-        this.senderUsername = senderUsername;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
+    /**
+     * مقدار «timestamp» را برمی‌گرداند.
+     *
+     * @return مقدار بازگشتی
+     */
+    public LocalDateTime getTimestamp() { return timestamp; }
+    /**
+     * مقدار «timestamp» را تنظیم می‌کند.
+     *
+     * @param timestamp پارامتر timestamp
+     */
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 }

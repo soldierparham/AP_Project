@@ -40,12 +40,22 @@ public class AdminPanelController {
     private VBox statsBox;
     private ComboBox<String> statusCombo;
 
+    /**
+     * سازنده کلاس AdminPanelController؛ نمونه جدید با مقادیر داده‌شده ایجاد می‌کند.
+     *
+     * @param onBack پارامتر onBack
+     */
     public AdminPanelController(Runnable onBack) {
         this.onBack = onBack;
     }
 
     // ---------------------------------------------------------- UI
 
+    /**
+     * «view» جدید ایجاد می‌کند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     public BorderPane createView() {
         BorderPane root = new BorderPane();
         root.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
@@ -100,6 +110,14 @@ public class AdminPanelController {
     private static final String TAB_NORMAL_STYLE = "-fx-background-color: #241942; -fx-text-fill: #b9a6df; -fx-background-radius: 8; -fx-border-color: #3b286b; -fx-border-radius: 8; -fx-border-width: 1; -fx-padding: 6 16 6 16; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;";
     private static final String TAB_ACTIVE_STYLE = "-fx-background-color: #3b286b; -fx-text-fill: #ffc83b; -fx-font-weight: bold; -fx-background-radius: 8; -fx-border-color: #ffc83b; -fx-border-radius: 8; -fx-border-width: 1.5; -fx-padding: 6 16 6 16; -fx-cursor: hand; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;";
 
+    /**
+     * کامپوننت/ساختار «tab button» را می‌سازد و برمی‌گرداند.
+     *
+     * @param text متن
+     * @param content پارامتر content
+     * @param holder پارامتر holder
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Button buildTabButton(String text, Node content, BorderPane holder) {
         Button b = new Button(text);
         b.setStyle(TAB_NORMAL_STYLE);
@@ -114,6 +132,12 @@ public class AdminPanelController {
         return b;
     }
 
+    /**
+     * «scroll» را در قالب مناسب قرار می‌دهد.
+     *
+     * @param content پارامتر content
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private ScrollPane wrapScroll(VBox content) {
         content.setPadding(new Insets(15));
         content.setStyle("-fx-background-color: #160f29;");
@@ -123,6 +147,11 @@ public class AdminPanelController {
         return scroll;
     }
 
+    /**
+     * «card» جدید ایجاد می‌کند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private VBox createCard() {
         VBox card = new VBox(6);
         card.setPadding(new Insets(12));
@@ -130,6 +159,12 @@ public class AdminPanelController {
         return card;
     }
 
+    /**
+     * متد «infoLabel»؛ بخشی از عملکرد کلاس AdminPanelController را پیاده‌سازی می‌کند.
+     *
+     * @param text متن
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Label infoLabel(String text) {
         Label lbl = new Label(text);
         lbl.setWrapText(true);
@@ -137,6 +172,12 @@ public class AdminPanelController {
         return lbl;
     }
 
+    /**
+     * متد «mutedLabel»؛ بخشی از عملکرد کلاس AdminPanelController را پیاده‌سازی می‌کند.
+     *
+     * @param text متن
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Label mutedLabel(String text) {
         Label lbl = new Label(text);
         lbl.setWrapText(true);
@@ -146,6 +187,11 @@ public class AdminPanelController {
 
     // ---------------------------------------------------------- تب آگهی‌ها
 
+    /**
+     * کامپوننت/ساختار «ads tab» را می‌سازد و برمی‌گرداند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildAdsTab() {
         adsBox = new VBox(10);
 
@@ -171,6 +217,11 @@ public class AdminPanelController {
         return container;
     }
 
+    /**
+     * داده‌های مربوط به «ads» را بارگذاری و نمایش می‌دهد.
+     *
+     * @param status پارامتر status
+     */
     private void loadAds(String status) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/admin/advertisements?status=" + status))
@@ -200,6 +251,12 @@ public class AdminPanelController {
                 }));
     }
 
+    /**
+     * ساخت کارت گرافیکی یک آگهی شامل تصویر، عنوان، قیمت و دکمه‌های عملیات.
+     *
+     * @param ad آگهی
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildAdCard(JsonNode ad) {
         long id = ad.path("id").asLong();
         String status = ad.path("status").asText("");
@@ -335,6 +392,11 @@ public class AdminPanelController {
         dlg.showAndWait();
     }
 
+    /**
+     * «ad detail» را به کاربر نمایش می‌دهد.
+     *
+     * @param ad آگهی
+     */
     private void showAdDetail(JsonNode ad) {
         Stage dlg = new Stage();
         dlg.initModality(Modality.APPLICATION_MODAL);
@@ -443,6 +505,11 @@ public class AdminPanelController {
 
     // ---------------------------------------------------------- تب کاربران
 
+    /**
+     * کامپوننت/ساختار «users tab» را می‌سازد و برمی‌گرداند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildUsersTab() {
         usersBox = new VBox(10);
 
@@ -459,6 +526,9 @@ public class AdminPanelController {
         return container;
     }
 
+    /**
+     * داده‌های مربوط به «users» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadUsers() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/admin/users"))
@@ -484,6 +554,12 @@ public class AdminPanelController {
                 }));
     }
 
+    /**
+     * کامپوننت/ساختار «user card» را می‌سازد و برمی‌گرداند.
+     *
+     * @param user کاربر
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildUserCard(JsonNode user) {
         long id = user.path("id").asLong();
         String role = user.path("role").asText("USER");
@@ -522,6 +598,11 @@ public class AdminPanelController {
     private javafx.scene.control.ComboBox<String> categoryParentCombo;
     private final java.util.Map<String, Long> parentCategoryIds = new java.util.LinkedHashMap<>();
 
+    /**
+     * کامپوننت/ساختار «categories tab» را می‌سازد و برمی‌گرداند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildCategoriesTab() {
         categoriesBox = new VBox(10);
 
@@ -592,6 +673,9 @@ public class AdminPanelController {
         return container;
     }
 
+    /**
+     * داده‌های مربوط به «categories» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadCategories() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/admin/categories"))
@@ -648,6 +732,12 @@ public class AdminPanelController {
     }
 
     // ساخت ردیف یک دسته‌بندی (زیردسته‌ها با علامت و تورفتگی)
+    /**
+     * «category row» را اضافه می‌کند.
+     *
+     * @param category دسته‌بندی
+     * @param isChild پارامتر isChild
+     */
     private void addCategoryRow(JsonNode category, boolean isChild) {
         long id = category.path("id").asLong();
         String catName = category.path("name").asText("-");
@@ -685,6 +775,11 @@ public class AdminPanelController {
 
     // ---------------------------------------------------------- تب شهرها
 
+    /**
+     * کامپوننت/ساختار «cities tab» را می‌سازد و برمی‌گرداند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildCitiesTab() {
         citiesBox = new VBox(10);
 
@@ -716,6 +811,9 @@ public class AdminPanelController {
         return container;
     }
 
+    /**
+     * داده‌های مربوط به «cities» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadCities() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/admin/cities"))
@@ -769,6 +867,14 @@ public class AdminPanelController {
     }
 
     // ✏️ ویرایش درجا: تبدیل ردیف به فیلد متنی + دکمه ثبت/انصراف
+    /**
+     * «inline rename» را به کاربر نمایش می‌دهد.
+     *
+     * @param row پارامتر row
+     * @param oldName پارامتر oldName
+     * @param onSave پارامتر onSave
+     * @param onCancel پارامتر onCancel
+     */
     private void showInlineRename(HBox row, String oldName,
                                   java.util.function.Consumer<String> onSave,
                                   Runnable onCancel) {
@@ -795,6 +901,13 @@ public class AdminPanelController {
     }
 
     // درخواست PUT برای ویرایش (دسته‌بندی/شهر)
+    /**
+     * متد «putAdminAction»؛ بخشی از عملکرد کلاس AdminPanelController را پیاده‌سازی می‌کند.
+     *
+     * @param path پارامتر path
+     * @param jsonBody پارامتر jsonBody
+     * @param onSuccess پارامتر onSuccess
+     */
     private void putAdminAction(String path, String jsonBody, Runnable onSuccess) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + path))
@@ -815,6 +928,11 @@ public class AdminPanelController {
 
     // ---------------------------------------------------------- تب آمار
 
+    /**
+     * کامپوننت/ساختار «stats tab» را می‌سازد و برمی‌گرداند.
+     *
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildStatsTab() {
         statsBox = new VBox(10);
 
@@ -831,6 +949,9 @@ public class AdminPanelController {
         return container;
     }
 
+    /**
+     * داده‌های مربوط به «stats» را بارگذاری و نمایش می‌دهد.
+     */
     private void loadStats() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/admin/stats"))
@@ -863,6 +984,13 @@ public class AdminPanelController {
                 }));
     }
 
+    /**
+     * کامپوننت/ساختار «stat row» را می‌سازد و برمی‌گرداند.
+     *
+     * @param title عنوان
+     * @param value مقدار
+     * @return کامپوننت گرافیکی ساخته‌شده
+     */
     private Node buildStatRow(String title, String value) {
         Label lblTitle = new Label(title);
         lblTitle.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
@@ -882,6 +1010,13 @@ public class AdminPanelController {
 
     // ---------------------------------------------------------- ابزارهای HTTP
 
+    /**
+     * متد «postAdminAction»؛ بخشی از عملکرد کلاس AdminPanelController را پیاده‌سازی می‌کند.
+     *
+     * @param path پارامتر path
+     * @param jsonBody پارامتر jsonBody
+     * @param onSuccess پارامتر onSuccess
+     */
     private void postAdminAction(String path, String jsonBody, Runnable onSuccess) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + path))
@@ -904,6 +1039,12 @@ public class AdminPanelController {
                 }));
     }
 
+    /**
+     * «admin action» را حذف می‌کند.
+     *
+     * @param path پارامتر path
+     * @param onSuccess پارامتر onSuccess
+     */
     private void deleteAdminAction(String path, Runnable onSuccess) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + path))
@@ -921,6 +1062,12 @@ public class AdminPanelController {
                 }));
     }
 
+    /**
+     * «error» را به کاربر نمایش می‌دهد.
+     *
+     * @param responseBody پارامتر responseBody
+     * @param statusCode پارامتر statusCode
+     */
     private void showError(String responseBody, int statusCode) {
         String message = "عملیات ناموفق بود (کد " + statusCode + ")";
         try {
