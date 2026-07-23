@@ -19,6 +19,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.function.Consumer;
 
 /**
  * 🛡️ پنل مدیریت (فقط برای کاربر با نقش ADMIN نمایش داده می‌شود)
@@ -239,18 +240,11 @@ public class AdminPanelController {
         if (!"REJECTED".equalsIgnoreCase(status)) {
             Button btnReject = new Button("❌ رد");
             btnReject.setStyle("-fx-background-color: #b71c1c; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand; -fx-font-family: 'Vazirmatn';");
-            btnReject.setOnAction(e -> {
-                TextInputDialog dialog = new TextInputDialog();
-                dialog.setTitle("رد آگهی");
-                dialog.setHeaderText("دلیل رد آگهی را وارد کنید (اختیاری):");
-                dialog.setContentText("یادداشت:");
-                UiTheme.styleTextInputDialog(dialog);
-                dialog.showAndWait().ifPresent(note -> {
-                    String body = "{\"note\":\"" + note.replace("\"", "\\\"") + "\"}";
-                    postAdminAction("/api/admin/advertisements/" + id + "/reject", body,
-                            () -> loadAds(statusCombo.getValue()));
-                });
-            });
+            btnReject.setOnAction(e -> showRejectReasonDialog(note -> {
+                String body = "{\"note\":\"" + note.replace("\"", "\\\"") + "\"}";
+                postAdminAction("/api/admin/advertisements/" + id + "/reject", body,
+                        () -> loadAds(statusCombo.getValue()));
+            }));
             actions.getChildren().add(btnReject);
         }
 
@@ -278,6 +272,69 @@ public class AdminPanelController {
     // ---------------------------------------------------------- نمایش کامل آگهی برای مدیر
 
     /** 👁 نمایش کامل آگهی (عکس‌ها، توضیحات و مشخصات) در پنجره جداگانه */
+    /**
+     * دیالوگ داخلی تکمیلی برای دریافت دلیل رد آگهی.
+     * عمداً از TextInputDialog/DialogPane استفاده نمی‌کنیم چون محاسبهٔ عرض داخلی ButtonBar
+     * توسط جاوافکس با ترتیب راست‌به-چپ (RTL) ترکیب می‌شود و دکمهٔ «انصراف» را بریده/کوتاه
+     * نمایش می‌دهد. این متد یک پنجرهٔ کاملاً دستی با Stage + VBox می‌سازد که دکمه‌ها
+     * در یک HBox معمولی قرار دارند (بدون هیچ محاسبهٔ عرض یکنواختی از سمت JavaFX)،
+     * برای همین همیشه به اندازهٔ واقعی متن دکمه رندر می‌شوند و هرگز بریده نمی‌شوند.
+     *
+     * @param onConfirm وقتی کاربر دکمهٔ «تأیید» را بزند، با متن یادداشت (ممکن است خالی باشد) فراخوانی می‌شود
+     */
+    private void showRejectReasonDialog(Consumer<String> onConfirm) {
+        Stage dlg = new Stage();
+        dlg.initModality(Modality.APPLICATION_MODAL);
+        dlg.setTitle("رد آگهی");
+        dlg.setResizable(false);
+
+        Label header = new Label("دلیل رد آگهی را وارد کنید (اختیاری):");
+        header.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
+        header.setWrapText(true);
+        header.setMaxWidth(360);
+
+        TextField field = new TextField();
+        field.setPromptText("یادداشت:");
+        field.setPrefWidth(360);
+        field.setStyle("-fx-background-color: #160f29; -fx-text-fill: white;"
+                + "-fx-prompt-text-fill: #8b7ca6;"
+                + "-fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8;"
+                + "-fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-padding: 8;");
+
+        Button btnOk = new Button("تأیید");
+        btnOk.setStyle("-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 8;"
+                + "-fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;"
+                + "-fx-padding: 8 26 8 26;");
+        btnOk.setDefaultButton(true);
+
+        Button btnCancel = new Button("انصراف");
+        btnCancel.setStyle("-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 8;"
+                + "-fx-cursor: hand; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;"
+                + "-fx-padding: 8 26 8 26;");
+        btnCancel.setCancelButton(true);
+
+        HBox buttons = new HBox(10, btnOk, btnCancel);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+
+        VBox root = new VBox(16, header, field, buttons);
+        root.setPadding(new Insets(22, 28, 22, 28));
+        root.setAlignment(Pos.TOP_RIGHT);
+        root.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        root.setStyle("-fx-background-color: #241942; -fx-border-color: #ffc83b; -fx-border-width: 1.5px;");
+
+        btnOk.setOnAction(ev -> {
+            String note = field.getText() == null ? "" : field.getText();
+            dlg.close();
+            onConfirm.accept(note);
+        });
+        btnCancel.setOnAction(ev -> dlg.close());
+
+        Scene scene = new Scene(root);
+        dlg.setScene(scene);
+        dlg.sizeToScene();
+        dlg.showAndWait();
+    }
+
     private void showAdDetail(JsonNode ad) {
         Stage dlg = new Stage();
         dlg.initModality(Modality.APPLICATION_MODAL);

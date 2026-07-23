@@ -994,6 +994,19 @@ public class HelloController {
             lblStatus.setStyle("-fx-text-fill: " + statusToColor(adStatus)
                     + "; -fx-font-size: 12px; -fx-font-weight: bold; -fx-font-family: 'Vazirmatn';");
             textContainer.getChildren().add(0, lblStatus);
+
+            // 📝 نمایش دلیل رد آگهی به صاحب آن، وقتی مدیر آگهی را رد کرده است
+            if ("REJECTED".equalsIgnoreCase(adStatus)) {
+                String rejectNote = extractJsonField(adJson, "adminNote");
+                if (rejectNote != null && !rejectNote.isBlank()
+                        && !"مشخص نشده".equals(rejectNote) && !"null".equalsIgnoreCase(rejectNote)) {
+                    Label lblReason = new Label("\ud83d\udcdd دلیل رد مدیر: " + rejectNote);
+                    lblReason.setWrapText(true);
+                    lblReason.setMaxWidth(420);
+                    lblReason.setStyle("-fx-text-fill: #ff8a8a; -fx-font-size: 12px; -fx-font-family: 'Vazirmatn';");
+                    textContainer.getChildren().add(1, lblReason);
+                }
+            }
         }
 
         // دکمه‌های عملیات

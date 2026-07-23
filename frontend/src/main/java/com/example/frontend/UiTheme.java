@@ -76,7 +76,22 @@ public final class UiTheme {
                 + "-fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8;"
                 + "-fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-padding: 8;");
 
-        // استایل متن‌ها و دکمه‌ها باید بعد از نمایش دیالوگ اعمال شود، وگرنه lookup کار نمی‌کند و متن ناخوانا می‌ماند.
+        // 🔧 برچسب دکمه‌های پیش‌فرض (OK/Cancel) باید همین‌جا، پیش از نمایش دیالوگ، به فارسی تغییر کند.
+        // اگر این تغییر بعد از نمایش دیالوگ انجام شود (مثل حالت قبلی)، عرض پنجره بر اساس متن انگلیسی
+        // «Cancel» محاسبه و ثابت می‌شود و دکمه‌ی فارسی «انصراف» به‌طور ناقص/بریده دیده می‌شود.
+        // چون فقط ButtonData عوض نمی‌شود (همان OK_DONE / CANCEL_CLOSE می‌ماند)، منطق showAndWait().ifPresent(...)
+        // در جاهایی که از این دیالوگ استفاده می‌کنند بدون تغییر درست کار می‌کند.
+        for (int i = 0; i < pane.getButtonTypes().size(); i++) {
+            ButtonType bt = pane.getButtonTypes().get(i);
+            if (bt.getButtonData() == javafx.scene.control.ButtonBar.ButtonData.OK_DONE) {
+                pane.getButtonTypes().set(i, new ButtonType("تأیید", javafx.scene.control.ButtonBar.ButtonData.OK_DONE));
+            } else if (bt.getButtonData() == javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE) {
+                pane.getButtonTypes().set(i, new ButtonType("انصراف", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE));
+            }
+        }
+
+        // رنگ‌آمیزی باید بعد از نمایش دیالوگ اعمال شود، وگرنه lookup کار نمی‌کند؛ اما دیگر متنی تغییر نمی‌دهیم،
+        // پس اندازه‌ی پنجره از همان ابتدا با متن نهایی فارسی محاسبه شده و نیازی به resize دوباره نیست.
         dialog.setOnShown(ev -> {
             pane.applyCss();
             pane.layout();
@@ -98,7 +113,7 @@ public final class UiTheme {
                 String bg = primary ? "#ffc83b" : "#3b286b";
                 String fg = primary ? "#160f29" : "white";
                 if (b instanceof javafx.scene.control.Button) {
-                    ((javafx.scene.control.Button) b).setText(primary ? "تأیید" : "انصراف");
+                    ((javafx.scene.control.Button) b).setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
                 }
                 b.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + ";"
                         + "-fx-background-radius: 8; -fx-cursor: hand; -fx-font-weight: bold;"
