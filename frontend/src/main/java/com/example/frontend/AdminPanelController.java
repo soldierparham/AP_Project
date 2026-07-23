@@ -515,6 +515,16 @@ public class AdminPanelController {
             return cell;
         });
 
+        // متن مقدار انتخاب‌شده روی دکمه کمبو باید سفید باشد (پیش‌فرض مشکی روی زمینه تیره خوانا نبود)
+        javafx.scene.control.ListCell<String> parentBtnCell = new javafx.scene.control.ListCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? categoryParentCombo.getPromptText() : item);
+            }
+        };
+        parentBtnCell.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-family: 'Vazirmatn'; -fx-font-size: 13px;");
+        categoryParentCombo.setButtonCell(parentBtnCell);
+
         HBox controls = new HBox(10, txtName, categoryParentCombo, btnAdd);
         controls.setPadding(new Insets(10, 15, 0, 15));
 
