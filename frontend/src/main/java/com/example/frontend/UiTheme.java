@@ -8,6 +8,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.stage.Popup;
 import javafx.stage.Window;
 import javafx.util.Duration;
@@ -55,6 +56,50 @@ public final class UiTheme {
                     || bt.getButtonData() == javafx.scene.control.ButtonBar.ButtonData.YES);
             String bg = primary ? (danger ? "#b71c1c" : "#ffc83b") : "#3b286b";
             String fg = primary && !danger ? "#160f29" : "white";
+            b.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + ";"
+                    + "-fx-background-radius: 8; -fx-cursor: hand; -fx-font-weight: bold;"
+                    + "-fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-padding: 6 20 6 20;");
+        }
+    }
+
+    /** اعمال تم برنامه روی دیالوگ ورود متن (مثل دلیل رد آگهی). */
+    public static void styleTextInputDialog(TextInputDialog dialog) {
+        DialogPane pane = dialog.getDialogPane();
+        pane.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        pane.setStyle("-fx-background-color: #241942;"
+                + "-fx-border-color: #ffc83b;"
+                + "-fx-border-width: 1.5px;"
+                + "-fx-padding: 18px;"
+                + "-fx-font-family: 'Vazirmatn';");
+
+        Node header = pane.lookup(".header-panel");
+        if (header != null) {
+            header.setStyle("-fx-background-color: transparent;");
+        }
+        Node headerLabel = pane.lookup(".header-panel .label");
+        if (headerLabel != null) {
+            headerLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-family: 'Vazirmatn';");
+        }
+        Node content = pane.lookup(".content.label");
+        if (content != null) {
+            content.setStyle("-fx-text-fill: #b9a6df; -fx-font-size: 13px; -fx-font-family: 'Vazirmatn';");
+        }
+        Node buttonBar = pane.lookup(".button-bar");
+        if (buttonBar != null) {
+            buttonBar.setStyle("-fx-background-color: transparent;");
+        }
+        dialog.getEditor().setStyle("-fx-background-color: #160f29; -fx-text-fill: white;"
+                + "-fx-border-color: #3b286b; -fx-border-radius: 8; -fx-background-radius: 8;"
+                + "-fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-padding: 8;");
+        for (ButtonType bt : pane.getButtonTypes()) {
+            Node b = pane.lookupButton(bt);
+            if (b == null) continue;
+            boolean primary = bt.getButtonData() != null && bt.getButtonData().isDefaultButton();
+            String bg = primary ? "#ffc83b" : "#3b286b";
+            String fg = primary ? "#160f29" : "white";
+            if (b instanceof javafx.scene.control.Button) {
+                ((javafx.scene.control.Button) b).setText(primary ? "تأیید" : "انصراف");
+            }
             b.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + ";"
                     + "-fx-background-radius: 8; -fx-cursor: hand; -fx-font-weight: bold;"
                     + "-fx-font-family: 'Vazirmatn'; -fx-font-size: 13px; -fx-padding: 6 20 6 20;");

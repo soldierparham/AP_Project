@@ -244,6 +244,7 @@ public class AdminPanelController {
                 dialog.setTitle("رد آگهی");
                 dialog.setHeaderText("دلیل رد آگهی را وارد کنید (اختیاری):");
                 dialog.setContentText("یادداشت:");
+                UiTheme.styleTextInputDialog(dialog);
                 dialog.showAndWait().ifPresent(note -> {
                     String body = "{\"note\":\"" + note.replace("\"", "\\\"") + "\"}";
                     postAdminAction("/api/admin/advertisements/" + id + "/reject", body,

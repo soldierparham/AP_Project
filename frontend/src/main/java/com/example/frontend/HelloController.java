@@ -2282,6 +2282,18 @@ public class HelloController {
 
     @FXML
     protected void onLogoutClick() {
+        ButtonType yesBt = new ButtonType("بله، خارج شو", javafx.scene.control.ButtonBar.ButtonData.YES);
+        ButtonType noBt = new ButtonType("انصراف", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                "آیا می‌خواهید از حساب خود خارج شوید؟", yesBt, noBt);
+        confirm.setHeaderText(null);
+        confirm.setTitle("خروج از حساب");
+        UiTheme.styleAlert(confirm);
+        java.util.Optional<ButtonType> res = confirm.showAndWait();
+        if (res.isEmpty() || res.get() != yesBt) {
+            return;
+        }
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/auth/logout"))
                 .header("Authorization", "Bearer " + MainApplication.jwtToken)
