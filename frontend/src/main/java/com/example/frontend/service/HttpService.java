@@ -1,4 +1,4 @@
-package com.example.frontend;
+package com.example.frontend.service;
 
 import java.net.URI;
 import java.net.http.HttpClient;

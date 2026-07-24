@@ -1,7 +1,6 @@
 com\example\frontend\Launcher.class
 com\example\frontend\LoginController.class
 com\example\frontend\HelloController.class
-com\example\frontend\HttpService.class
 com\example\frontend\HelloController$1.class
 com\example\frontend\RegisterAdController.class
 com\example\frontend\HelloController$2.class
