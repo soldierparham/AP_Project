@@ -180,7 +180,7 @@ public class ChatRestController {
         message.setConversation(conversation);
         message.setSenderUsername(buyerUsername);
         message.setContent(body.get("content").toString());
-        message.setTimestamp(LocalDateTime.now());
+        message.setTimestamp(LocalDateTime.now(java.time.ZoneId.of("Asia/Tehran")));
         messageRepository.save(message);
 
         return ResponseEntity.ok(Map.of(
@@ -336,7 +336,7 @@ public class ChatRestController {
         message.setConversation(conversation);
         message.setSenderUsername(username);
         message.setContent(body.get("content").toString());
-        message.setTimestamp(LocalDateTime.now());
+        message.setTimestamp(LocalDateTime.now(java.time.ZoneId.of("Asia/Tehran")));
 
         messageRepository.save(message);
 

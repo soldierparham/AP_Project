@@ -33,12 +33,9 @@
 
                 <Button fx:id="btnChatNav" mnemonicParsing="false" onAction="#onChatScreenClick" style="-fx-background-color: transparent; -fx-text-fill: #b9a6df; -fx-cursor: hand; -fx-background-radius: 6; -fx-border-radius: 6;" text="چت" />
 
-                <!-- ❌ دکمه جداگانه «آگهی‌های من» حذف شد — فقط از منوی «دیوار من» در دسترس است -->
-                <!-- ❌ دکمه «پشتیبانی» کاملاً حذف شد -->
 
                 <Region HBox.hgrow="ALWAYS" />
 
-                <!-- 🔍 اضافه شدن fx:id و رویداد فیلتر همزمان جستجو -->
                 <TextField fx:id="searchField" onKeyReleased="#onSearchKeyReleased" prefHeight="35.0" prefWidth="230.0" promptText="جستجو..." style="-fx-background-color: #160f29; -fx-background-radius: 6; -fx-border-color: #3b286b; -fx-border-radius: 6; -fx-alignment: center-right; -fx-text-fill: white;">
                     <font>
                         <Font size="13.0" />

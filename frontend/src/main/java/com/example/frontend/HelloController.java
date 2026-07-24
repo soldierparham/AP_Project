@@ -2500,11 +2500,38 @@ public class HelloController {
                                 ? "-fx-background-color: #3b286b; -fx-text-fill: white; -fx-background-radius: 12; -fx-font-family: 'Vazirmatn';"
                                 : "-fx-background-color: #ffc83b; -fx-text-fill: #160f29; -fx-background-radius: 12; -fx-font-family: 'Vazirmatn';");
 
-                        HBox row = new HBox(bubble);
+                        // 🕐 نمایش زمان ارسال پیام به وقت ایران زیر هر پیام
+                        String timeText = formatMessageTime(extractJsonField(msgJson, "timestamp"));
+
+                        VBox bubbleBox = new VBox(2, bubble);
+                        bubbleBox.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+                        if (!timeText.isEmpty()) {
+                            Label timeLabel = new Label(timeText);
+                            timeLabel.setStyle("-fx-text-fill: #8b7ca6; -fx-font-size: 10px; -fx-font-family: 'Vazirmatn';");
+                            bubbleBox.getChildren().add(timeLabel);
+                        }
+
+                        HBox row = new HBox(bubbleBox);
                         row.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
                         messagesBox.getChildren().add(row);
                     }
                 }));
+    }
+
+    /**
+     * 🕐 تبدیل رشته زمان دریافتی از سرور (به وقت ایران) به قالب نمایشی ساعت و تاریخ
+     *
+     * @param timestamp رشته زمان در قالب ISO (مثل 2026-07-24T09:30:15)
+     * @return متن آماده نمایش یا رشته خالی در صورت نامعتبر بودن
+     */
+    private String formatMessageTime(String timestamp) {
+        if (timestamp == null || timestamp.isBlank() || timestamp.equals("مشخص نشده")) return "";
+        try {
+            java.time.LocalDateTime dt = java.time.LocalDateTime.parse(timestamp);
+            return dt.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm · yyyy/MM/dd"));
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     // ---------------------------------------------------------- 🛡️ پنل مدیریت و نقش کاربر

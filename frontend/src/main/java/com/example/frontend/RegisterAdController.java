@@ -96,6 +96,7 @@ public class RegisterAdController {
     }
 
     // 🗂 دریافت دسته‌بندی‌ها از سرور: فقط دسته‌های اصلی در لیست اول؛ زیردسته‌ها در لیست دوم
+
     /**
      * داده‌های مربوط به «categories from server» را بارگذاری و نمایش می‌دهد.
      */
@@ -152,7 +153,9 @@ public class RegisterAdController {
                 });
     }
 
-    /** نمایش/مخفی‌سازی کمبوی زیردسته بر اساس دسته اصلی انتخاب‌شده */
+    /**
+     * نمایش/مخفی‌سازی کمبوی زیردسته بر اساس دسته اصلی انتخاب‌شده
+     */
     private void refreshSubCategoryCombo(String mainCategory) {
         if (subCategoryInput == null) return;
         java.util.List<String> kids = mainCategory == null ? null : subcategoriesOf.get(mainCategory);
@@ -164,6 +167,7 @@ public class RegisterAdController {
     }
 
     // دریافت لیست شهرها از سرور تا شهرهای جدید ادمین هم قابل انتخاب باشند
+
     /**
      * داده‌های مربوط به «cities from server» را بارگذاری و نمایش می‌دهد.
      */
@@ -243,8 +247,12 @@ public class RegisterAdController {
                             if (mainIdx >= selectedImageFiles.size()) mainIdx = 0;
                             renderImageThumbs();
                         },
-                        () -> { mainIdx = idx; renderImageThumbs(); }));
-            } catch (Exception ignored) {}
+                        () -> {
+                            mainIdx = idx;
+                            renderImageThumbs();
+                        }));
+            } catch (Exception ignored) {
+            }
         }
         if (selectedImageFiles.isEmpty()) {
             Label lbl = new Label("🖼️ هیچ عکسی انتخاب نشده");
@@ -253,10 +261,14 @@ public class RegisterAdController {
         }
     }
 
-    /** 🖼️ پیش‌نمایش کوچک عکس؛ عکس اصلی کادر طلایی دارد و بقیه دکمه ⭐ دارند. (عین پترن HelloController.buildImageThumb) */
+    /**
+     * 🖼️ پیش‌نمایش کوچک عکس؛ عکس اصلی کادر طلایی دارد و بقیه دکمه ⭐ دارند. (عین پترن HelloController.buildImageThumb)
+     */
     private VBox buildImageThumb(Image image, String tag, boolean isMain, Runnable onRemove, Runnable onSetMain) {
         ImageView iv = new ImageView(image);
-        iv.setFitWidth(140); iv.setFitHeight(100); iv.setPreserveRatio(false);
+        iv.setFitWidth(140);
+        iv.setFitHeight(100);
+        iv.setPreserveRatio(false);
         iv.setStyle("-fx-effect: dropshadow(gaussian,rgba(0,0,0,0.4),4,0,0,2);");
 
         Label lblTag = new Label(isMain ? "⭐ عکس اصلی" : tag);
@@ -557,8 +569,8 @@ public class RegisterAdController {
     /**
      * «alert» را به کاربر نمایش می‌دهد.
      *
-     * @param type پارامتر type
-     * @param title عنوان
+     * @param type    پارامتر type
+     * @param title   عنوان
      * @param content پارامتر content
      */
     private void showAlert(Alert.AlertType type, String title, String content) {
